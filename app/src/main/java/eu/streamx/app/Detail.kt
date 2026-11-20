@@ -31,6 +31,9 @@ import androidx.compose.material.icons.outlined.Replay
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -57,23 +60,47 @@ import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-/** Bouton en pilule : plein (blanc) pour l'action principale, en verre pour les autres. */
+/**
+ * Bouton en pilule : discret au repos (principal un peu plus marqué), plein clair au focus (comme Google TV).
+ * `active` : bascule activée (ex. « Dans ma liste »), l'icône prend la couleur de la rubrique.
+ */
 @Composable
-fun PillButton(label: String, icon: ImageVector, primary: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
+fun PillButton(
+    label: String, icon: ImageVector?, primary: Boolean, modifier: Modifier = Modifier,
+    active: Boolean = false, onClick: () -> Unit
+) {
+    val th = LocalNavTheme.current
+    val lowRam = LocalLowRamMode.current
     val pill = RoundedCornerShape(50)
+    var focused by remember { mutableStateOf(false) }
+    val pState = rememberFocusProgress(focused)
+    val p = pState.value
+    val fill = lerp(if (primary) Color(0x38FFFFFF) else Color(0x1AFFFFFF), SXFocus.Fill, p)
+    val content = lerp(if (primary) Color.White else Color(0xE6FFFFFF), SXFocus.On, p)
+    val iconTint = if (active) lerp(th.ring, lerp(th.c1, Color.Black, 0.35f), p) else content
     Row(
-        modifier
-            .height(36.dp)
-            .tvFocus(pill, cornerRadius = 18.dp, scale = 1.06f, glowColor = if (primary) Color(0x88FFFFFF) else Color(0x669D7BFF), onClick = onClick)
-            .then(if (primary) Modifier.clip(pill).background(Color.White) else Modifier.glass(pill, 1.2f))
-            .padding(horizontal = 18.dp),
+        modifier.height(40.dp)
+            .onFocusChanged { focused = it.isFocused }
+            .tvFocus(pill, scale = 1.06f, decorate = false, onClick = onClick)
+            .focusShadow({ pState.value }, pill, enabled = !lowRam)
+            .clip(pill).background(fill)
+            .then(if (primary) Modifier else Modifier.border(1.dp, Color(0x29FFFFFF).copy(alpha = 0.16f * (1f - p)), pill))
+            .padding(horizontal = 20.dp),
+        horizontalArrangement = androidx.compose.foundation.layout.Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(icon, null, tint = if (primary) Color(0xFF0B0D19) else Color.White, modifier = Modifier.size(16.dp))
-        Spacer(Modifier.width(5.dp))
-        Text(label, color = if (primary) Color(0xFF0B0D19) else Color.White, fontSize = 12.5.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+        if (icon != null) {
+            Icon(icon, null, tint = iconTint, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(8.dp))
+        }
+        Text(label, color = content, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
     }
 }
+
+/** Bouton en pilule sans icône. */
+@Composable
+fun PillButton(label: String, primary: Boolean = true, modifier: Modifier = Modifier, onClick: () -> Unit) =
+    PillButton(label, null, primary, modifier, false, onClick)
 
 /** Bouton « Bande-annonce » : n'apparaît que si une bande-annonce est trouvée (TMDB). */
 @Composable
@@ -92,7 +119,7 @@ fun ListButton(kind: Kind, item: Item) {
     val inList = remember(fv, item.id) { Favorites.contains(ctx, kind, item.id) }
     PillButton(
         stringResource(if (inList) R.string.in_my_list else R.string.my_list),
-        if (inList) Icons.Outlined.Check else Icons.Outlined.Add, false
+        if (inList) Icons.Outlined.Check else Icons.Outlined.Add, false, active = inList
     ) { Favorites.toggle(ctx, kind, item) }
 }
 
@@ -225,7 +252,7 @@ fun MovieScreen(account: Account, item: Item, onBack: () -> Unit, onDetail: Open
                     val badge = RoundedCornerShape(SX.RBadge)
                     Text(
                         stringResource(R.string.badge_movie),
-                        color = Color.White, fontSize = 9.5.sp, fontWeight = FontWeight.Medium,
+                        color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Medium,
                         modifier = Modifier.glass(badge, 0.95f).padding(horizontal = 9.dp, vertical = 2.5.dp)
                     )
                     Spacer(Modifier.height(6.dp))
@@ -252,7 +279,7 @@ fun MovieScreen(account: Account, item: Item, onBack: () -> Unit, onDetail: Open
             }
             if (similar.isNotEmpty()) {
                 Spacer(Modifier.height(20.dp))
-                Text(stringResource(R.string.similar), color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(bottom = 2.dp))
+                Text(stringResource(R.string.similar), color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(bottom = 2.dp))
                 LazyRow(
                     Modifier.bleedStart(),
                     horizontalArrangement = Arrangement.spacedBy(10.dp),

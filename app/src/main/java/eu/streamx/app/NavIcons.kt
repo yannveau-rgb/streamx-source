@@ -1,12 +1,23 @@
 package eu.streamx.app
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.addPathNodes
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 
 /**
  * Icônes de la barre latérale, dessinées pour StreamX : trait de 1,9 sur une grille de 24, bouts arrondis, et un aplat doux
@@ -55,5 +66,51 @@ object NavIcons {
             )
             for (d in s.solids) addPath(addPathNodes(d), fill = SolidColor(Color.White))
         }.build()
+    }
+}
+
+/**
+ * Tuile d'en-tête de page : la même icône que dans la barre latérale (état actif), sur le dégradé de la rubrique,
+ * assombri d'un voile léger pour que le blanc reste lisible même sur le jaune (Films) ou le turquoise (Tube).
+ */
+@Composable
+fun PageIconTile(type: NavIconType, size: Dp = 36.dp, corner: Dp = 11.dp) {
+    val th = navThemeOf(type)
+    Box(
+        Modifier.size(size).clip(RoundedCornerShape(corner)).background(Brush.linearGradient(listOf(th.c1, th.c2))),
+        contentAlignment = Alignment.Center
+    ) {
+        Box(Modifier.matchParentSize().background(Color(0x2E000000)))
+        SidebarNavIcon(type, true, Color.White, Modifier.size(size * 0.6f))
+    }
+}
+
+/** En-tête de page commun : tuile de rubrique, titre 24 sp, sous-titre 12 sp et action facultative à droite. */
+@Composable
+fun PageHeader(
+    type: NavIconType,
+    title: String,
+    subtitle: String? = null,
+    modifier: Modifier = Modifier,
+    tileSize: Dp = 36.dp,
+    tileCorner: Dp = 11.dp,
+    trailing: (@Composable () -> Unit)? = null
+) {
+    androidx.compose.foundation.layout.Row(modifier, verticalAlignment = Alignment.CenterVertically) {
+        PageIconTile(type, tileSize, tileCorner)
+        androidx.compose.foundation.layout.Spacer(Modifier.size(12.dp, 0.dp))
+        androidx.compose.foundation.layout.Column(Modifier.weight(1f)) {
+            androidx.compose.material3.Text(
+                text = title, color = Color.White, fontSize = 24.sp,
+                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold, maxLines = 1
+            )
+            if (subtitle != null) {
+                androidx.compose.material3.Text(
+                    text = subtitle, color = SX.Muted, fontSize = 12.sp, maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                )
+            }
+        }
+        if (trailing != null) trailing()
     }
 }

@@ -125,7 +125,7 @@ fun EpgBar(channel: Item?, epg: List<Epg>?, modifier: Modifier = Modifier) {
                 Text(
                     text = cleanChannelName(channel.name).take(4),
                     color = Color.White,
-                    fontSize = 10.sp,
+                    fontSize = 10.5.sp,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1
                 )
@@ -163,7 +163,7 @@ fun EpgBar(channel: Item?, epg: List<Epg>?, modifier: Modifier = Modifier) {
                     Text(
                         text = stringResource(R.string.epg_now).uppercase(),
                         color = SX.Turquoise,
-                        fontSize = 8.5.sp,
+                        fontSize = 10.5.sp,
                         fontWeight = FontWeight.Bold
                     )
                 }
@@ -172,14 +172,14 @@ fun EpgBar(channel: Item?, epg: List<Epg>?, modifier: Modifier = Modifier) {
                 Box(
                     Modifier
                         .clip(RoundedCornerShape(6.dp))
-                        .background(if (isFav) Color(0x33FF2E63) else Color(0x1FFFFFFF))
-                        .border(0.6.dp, if (isFav) Color(0x80FF4D79) else Color(0x33FFFFFF), RoundedCornerShape(6.dp))
+                        .background(if (isFav) Color(0x33EC4899) else Color(0x1FFFFFFF))
+                        .border(0.6.dp, if (isFav) Color(0x80EC4899) else Color(0x33FFFFFF), RoundedCornerShape(6.dp))
                         .padding(horizontal = 7.dp, vertical = 2.dp)
                 ) {
                     Text(
                         text = stringResource(if (isFav) R.string.epg_fav_on else R.string.epg_fav_hint),
-                        color = if (isFav) Color(0xFFFF8FA3) else SX.Muted,
-                        fontSize = 9.5.sp,
+                        color = if (isFav) Color(0xFFF9A8D4) else SX.Muted,
+                        fontSize = 11.sp,
                         fontWeight = FontWeight.Medium
                     )
                 }
@@ -218,7 +218,7 @@ fun EpgBar(channel: Item?, epg: List<Epg>?, modifier: Modifier = Modifier) {
                         Text(
                             text = df.format(Date(cur.startMs)) + " – " + df.format(Date(cur.endMs)),
                             color = SX.Muted,
-                            fontSize = 10.sp,
+                            fontSize = 10.5.sp,
                             maxLines = 1
                         )
                     }

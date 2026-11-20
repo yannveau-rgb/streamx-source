@@ -120,10 +120,8 @@ object SX {
  */
 fun Modifier.tvFocus(
     shape: Shape,
-    cornerRadius: Dp = 14.dp,
+    cornerRadius: Dp = 14.dp, // conservé pour compatibilité (n'a plus d'effet)
     scale: Float = 1.05f,
-    glowColor: Color = Color(0x809D7BFF),
-    ringColor: Color = Color(0xFFD2B8FF),
     onLongClick: (() -> Unit)? = null,
     decorate: Boolean = true,
     onClick: () -> Unit = {}
@@ -146,32 +144,22 @@ fun Modifier.tvFocus(
                 val k = 1f + (scale - 1f) * p
                 scaleX = k
                 scaleY = k
+                if (decorate) {
+                    shadowElevation = 12.dp.toPx() * p
+                    this.shape = shape
+                    clip = false
+                    ambientShadowColor = Color.Black
+                    spotShadowColor = Color.Black
+                }
             }
         )
         .drawWithCache {
-            val cr = CornerRadius(cornerRadius.toPx(), cornerRadius.toPx())
-            val pad = 6.dp.toPx()
-            val glowBrush = Brush.radialGradient(
-                colors = listOf(glowColor, Color.Transparent),
-                center = Offset(size.width / 2f, size.height / 2f),
-                radius = maxOf(size.width, size.height) * 0.78f
-            )
             val outline = shape.createOutline(size, layoutDirection, this)
-            val ringBrush = Brush.linearGradient(listOf(Color.White, ringColor, Color(0x99FFFFFF)))
-            val ringWidth = 1.6.dp.toPx()
+            val ringW = 2.5.dp.toPx()
             onDrawWithContent {
-                val a = if (!decorate) 0f else if (lowRam) (if (focused) 1f else 0f) else (animProgress?.value ?: 0f)
-                if (a > 0.01f && !lowRam) {
-                    drawRoundRect(
-                        brush = glowBrush,
-                        alpha = a,
-                        topLeft = Offset(-pad, -pad),
-                        size = Size(size.width + pad * 2f, size.height + pad * 2f),
-                        cornerRadius = CornerRadius(cr.x + pad, cr.y + pad)
-                    )
-                }
                 drawContent()
-                if (a > 0.01f) drawOutline(outline, ringBrush, alpha = a, style = Stroke(ringWidth))
+                val a = if (!decorate) 0f else if (lowRam) (if (focused) 1f else 0f) else (animProgress?.value ?: 0f)
+                if (a > 0.01f) drawOutline(outline, Color.White, alpha = a * 0.95f, style = Stroke(ringW))
             }
         }
         .onFocusChanged {
@@ -227,6 +215,35 @@ fun Modifier.tvFocus(
         }
         .clickable(interactionSource = interactionSource, indication = null, onClick = onClick)
 }
+
+object SXFocus {
+    val Fill = Color(0xFFF4F5FA)
+    val On = Color(0xFF0B0D19)
+    val RestFill = Color(0x14FFFFFF)
+    val RestStroke = Color(0x26FFFFFF)
+    val RestText = Color(0xDEFFFFFF)
+    val Easing = androidx.compose.animation.core.CubicBezierEasing(0.2f, 0f, 0f, 1f)
+}
+
+@Composable
+fun rememberFocusProgress(focused: Boolean): androidx.compose.runtime.State<Float> {
+    val lowRam = LocalLowRamMode.current
+    return animateFloatAsState(
+        if (focused) 1f else 0f,
+        if (lowRam) androidx.compose.animation.core.snap() else tween(180, easing = SXFocus.Easing),
+        label = "sxFocus"
+    )
+}
+
+/** Ombre portée de focus (noire, suit la forme exacte). Remplace l'ancien halo radial qui formait une plaque. */
+fun Modifier.focusShadow(p: () -> Float, shape: Shape, elevation: Dp = 10.dp, enabled: Boolean = true): Modifier =
+    if (!enabled) this else this.graphicsLayer {
+        shadowElevation = elevation.toPx() * p()
+        this.shape = shape
+        clip = false
+        ambientShadowColor = Color.Black
+        spotShadowColor = Color.Black
+    }
 
 enum class NavIconType { HOME, LIVE, MOVIES, SERIES, KIDS, MUSIC, TUBE, FAVORITES, M3U, SETTINGS }
 
@@ -378,21 +395,21 @@ fun MainShell(account: Account, profiles: List<Account>, onSwitch: (Account) -> 
                         drawRect(Brush.verticalGradient(listOf(SX.BgTop, SX.BgBottom)))
                         drawRect(
                             Brush.radialGradient(
-                                listOf(Color(0x3A3DE0C5), Color.Transparent),
+                                listOf(Color(0x263DE0C5), Color.Transparent),
                                 center = Offset(0f, size.height * 0.28f),
                                 radius = size.width * 0.34f
                             )
                         )
                         drawRect(
                             Brush.radialGradient(
-                                listOf(Color(0x425B42D6), Color.Transparent),
+                                listOf(Color(0x265B42D6), Color.Transparent),
                                 center = Offset(size.width * 0.22f, size.height * 0.92f),
                                 radius = size.width * 0.45f
                             )
                         )
                         drawRect(
                             Brush.radialGradient(
-                                listOf(Color(0x302568B8), Color.Transparent),
+                                listOf(Color(0x262568B8), Color.Transparent),
                                 center = Offset(size.width * 0.85f, size.height * 0.65f),
                                 radius = size.width * 0.42f
                             )
@@ -403,7 +420,15 @@ fun MainShell(account: Account, profiles: List<Account>, onSwitch: (Account) -> 
     ) {
         Row(Modifier.fillMaxSize()) {
             Sidebar(items, selected, navReqs, contentReq, onSidebarSelect)
-            CompositionLocalProvider(LocalBringIntoViewSpec provides (if (lowRam) TvBringIntoViewLite else TvBringIntoView)) {
+            val sectionType = when (detail?.first) {
+                Kind.SERIES -> NavIconType.SERIES
+                Kind.VOD -> NavIconType.MOVIES
+                else -> items[selected].type
+            }
+            CompositionLocalProvider(
+                LocalBringIntoViewSpec provides (if (lowRam) TvBringIntoViewLite else TvBringIntoView),
+                LocalNavTheme provides navThemeOf(sectionType)
+            ) {
                 Box(
                     Modifier
                         .fillMaxSize()
@@ -460,7 +485,7 @@ fun SectionTitle(label: Int, topPadding: Dp = 12.dp) {
     Text(
         text = stringResource(label),
         color = Color.White,
-        fontSize = 15.sp,
+        fontSize = 16.sp,
         fontWeight = FontWeight.SemiBold,
         letterSpacing = (-0.2).sp,
         modifier = Modifier.padding(start = 28.dp, top = topPadding, bottom = 2.dp)

@@ -27,8 +27,8 @@ android {
         applicationId = "eu.streamx.app"
         minSdk = 28
         targetSdk = 35
-        versionCode = 49
-        versionName = "0.10.0"
+        versionCode = 50
+        versionName = "0.10.1"
         // URL du fichier latest.json (laisser vide tant que l'hÃ©bergement n'est pas choisi : la vÃ©rification est alors dÃ©sactivÃ©e).
         buildConfigField("String", "TMDB_KEY", "\"$tmdbKey\"")
         buildConfigField("String", "DEAD_IMAGE_HOST", "\"$deadImageHost\"")

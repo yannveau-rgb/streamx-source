@@ -122,7 +122,7 @@ fun SearchScreen(account: Account, initial: String = "", onClose: () -> Unit, on
 private fun ResultRow(title: Int, list: List<Entry>, kind: Kind, account: Account, onDetail: OpenDetail) {
     if (list.isEmpty()) return
     val ctx = LocalContext.current
-    Text(stringResource(title), color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(bottom = 2.dp))
+    Text(stringResource(title), color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(bottom = 2.dp))
     LazyRow(
         Modifier.bleedStart(),
         horizontalArrangement = Arrangement.spacedBy(10.dp),

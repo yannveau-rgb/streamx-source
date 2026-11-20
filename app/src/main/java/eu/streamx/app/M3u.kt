@@ -242,7 +242,7 @@ fun M3uScreen(onBack: () -> Unit) {
                                 Spacer(Modifier.width(12.dp))
                                 Column(Modifier.weight(1f)) {
                                     Text(ch.name, color = Color.White, fontSize = 12.5.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                    if (ch.group.isNotBlank()) Text(ch.group, color = SX.Muted, fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    if (ch.group.isNotBlank()) Text(ch.group, color = SX.Muted, fontSize = 10.5.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 }
                             }
                             Spacer(Modifier.height(5.dp))

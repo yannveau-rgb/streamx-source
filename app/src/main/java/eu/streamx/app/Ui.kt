@@ -39,6 +39,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.drawscope.DrawScope
@@ -111,7 +112,7 @@ fun Modifier.glass(shape: Shape, strength: Float = 1f): Modifier = this
     .background(
         Brush.verticalGradient(
             listOf(
-                Color(1f, 1f, 1f, (0.20f * strength).coerceAtMost(0.45f)),
+                Color(1f, 1f, 1f, (0.20f * strength).coerceAtMost(0.16f)),
                 Color(1f, 1f, 1f, (0.06f * strength).coerceAtMost(0.20f))
             )
         )
@@ -122,7 +123,7 @@ fun Modifier.glass(shape: Shape, strength: Float = 1f): Modifier = this
             listOf(
                 Color(1f, 1f, 1f, (0.50f * strength).coerceAtMost(0.72f)),
                 Color(1f, 1f, 1f, 0.08f),
-                Color(0.72f, 0.63f, 1f, (0.28f * strength).coerceAtMost(0.50f))
+                Color(1f, 1f, 1f, 0.10f)
             )
         ),
         shape
@@ -238,14 +239,11 @@ fun GlassInputBox(
     var focused by remember { mutableStateOf(false) }
     Box(
         modifier
-            .glass(shape, if (focused) 1.35f else 0.9f)
+            .glass(shape, 0.9f)
+            .background(if (focused) Color(0x29FFFFFF) else Color.Transparent, shape)
             .border(
-                width = if (focused) 1.6.dp else 0.6.dp,
-                brush = if (focused) {
-                    Brush.horizontalGradient(listOf(Color(0xFFB983FF), Color(0xFF3DE0C5)))
-                } else {
-                    SolidColor(Color(0x38FFFFFF))
-                },
+                width = if (focused) 2.dp else 0.6.dp,
+                color = if (focused) Color(0xF2FFFFFF) else Color(0x38FFFFFF),
                 shape = shape
             )
             .padding(horizontal = horizontalPadding, vertical = verticalPadding)
@@ -258,7 +256,7 @@ fun GlassInputBox(
             onValueChange = onValueChange,
             singleLine = true,
             textStyle = TextStyle(color = Color.White, fontSize = fontSizeSp.sp),
-            cursorBrush = SolidColor(SX.VioletLight),
+            cursorBrush = SolidColor(LocalNavTheme.current.ring),
             visualTransformation = if (password) PasswordVisualTransformation() else VisualTransformation.None,
             keyboardOptions = keyboardOptions,
             modifier = fieldModifier
@@ -288,7 +286,7 @@ fun RoundGlassButton(icon: ImageVector, hasNotification: Boolean, onClick: () ->
     Box(
         Modifier
             .size(40.dp)
-            .tvFocus(shape = CircleShape, cornerRadius = 20.dp, scale = 1.1f, glowColor = Color(0x669D7BFF), onClick = onClick)
+            .tvFocus(shape = CircleShape, cornerRadius = 20.dp, scale = 1.1f, onClick = onClick)
     ) {
         Box(
             Modifier
@@ -305,7 +303,7 @@ fun RoundGlassButton(icon: ImageVector, hasNotification: Boolean, onClick: () ->
                     .padding(top = 1.dp, end = 1.dp)
                     .size(8.dp)
                     .clip(CircleShape)
-                    .background(Color(0xFFFF4258))
+                    .background(Color(0xFFF59E0B))
                     .border(1.dp, Color(0xFF181A28), CircleShape)
             )
         }
@@ -384,7 +382,7 @@ fun QuickActionModal(
     subtitle: String,
     image: String?,
     landscapeImage: Boolean = false,
-    accentColor: Color = Color(0xFFB983FF),
+    accentColor: Color = LocalNavTheme.current.ring,
     actions: List<QuickAction>,
     onDismiss: () -> Unit
 ) {
@@ -512,7 +510,8 @@ fun QuickActionModal(
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     actions.forEachIndexed { idx, act ->
                         var rowFocused by remember { mutableStateOf(false) }
-                        val rowShape = RoundedCornerShape(12.dp)
+                        val rowShape = RoundedCornerShape(SX.RTile)
+                        val rp = rememberFocusProgress(rowFocused).value
                         Row(
                             Modifier
                                 .fillMaxWidth()
@@ -520,10 +519,8 @@ fun QuickActionModal(
                                 .onFocusChanged { rowFocused = it.isFocused }
                                 .tvFocus(
                                     shape = rowShape,
-                                    cornerRadius = 12.dp,
-                                    scale = 1.03f,
-                                    glowColor = act.accent.copy(alpha = 0.55f),
-                                    ringColor = act.accent,
+                                    scale = 1.0f,
+                                    decorate = false,
                                     onClick = {
                                         if (android.os.SystemClock.uptimeMillis() - openedAt >= 320L) {
                                             onDismiss()
@@ -532,25 +529,7 @@ fun QuickActionModal(
                                     }
                                 )
                                 .clip(rowShape)
-                                .background(
-                                    if (rowFocused) {
-                                        Brush.horizontalGradient(
-                                            listOf(
-                                                act.accent.copy(alpha = 0.32f),
-                                                act.accent.copy(alpha = 0.14f)
-                                            )
-                                        )
-                                    } else {
-                                        Brush.horizontalGradient(
-                                            listOf(Color(0x1FFFFFFF), Color(0x0FFFFFFF))
-                                        )
-                                    }
-                                )
-                                .border(
-                                    width = 0.8.dp,
-                                    color = if (rowFocused) act.accent.copy(alpha = 0.8f) else Color(0x28FFFFFF),
-                                    shape = rowShape
-                                )
+                                .background(lerp(Color(0x14FFFFFF), SXFocus.Fill, rp))
                                 .padding(horizontal = 13.dp, vertical = 10.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -558,21 +537,21 @@ fun QuickActionModal(
                                 Modifier
                                     .size(28.dp)
                                     .clip(RoundedCornerShape(8.dp))
-                                    .background(act.accent.copy(alpha = if (rowFocused) 0.9f else 0.25f)),
+                                    .background(lerp(act.accent.copy(alpha = 0.22f), act.accent.copy(alpha = 0.16f), rp)),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = act.icon,
                                     contentDescription = null,
-                                    tint = if (rowFocused) Color.White else act.accent,
+                                    tint = act.accent,
                                     modifier = Modifier.size(16.dp)
                                 )
                             }
                             Spacer(Modifier.width(11.dp))
                             Text(
                                 text = act.label,
-                                color = Color.White,
-                                fontSize = 12.5.sp,
+                                color = lerp(Color.White, SXFocus.On, rp),
+                                fontSize = 13.5.sp,
                                 fontWeight = if (rowFocused) FontWeight.Bold else FontWeight.SemiBold,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
@@ -583,15 +562,16 @@ fun QuickActionModal(
 
                     // Bouton Annuler
                     var cancelFocused by remember { mutableStateOf(false) }
-                    val cancelShape = RoundedCornerShape(12.dp)
+                    val cancelShape = RoundedCornerShape(SX.RTile)
+                    val cp = rememberFocusProgress(cancelFocused).value
                     Row(
                         Modifier
                             .fillMaxWidth()
                             .onFocusChanged { cancelFocused = it.isFocused }
                             .tvFocus(
                                 shape = cancelShape,
-                                cornerRadius = 12.dp,
-                                scale = 1.02f,
+                                scale = 1.0f,
+                                decorate = false,
                                 onClick = {
                                     if (android.os.SystemClock.uptimeMillis() - openedAt >= 320L) {
                                         onDismiss()
@@ -599,8 +579,7 @@ fun QuickActionModal(
                                 }
                             )
                             .clip(cancelShape)
-                            .background(if (cancelFocused) Color(0x26FFFFFF) else Color(0x12FFFFFF))
-                            .border(0.7.dp, Color(0x24FFFFFF), cancelShape)
+                            .background(lerp(Color(0x0FFFFFFF), SXFocus.Fill, cp))
                             .padding(horizontal = 13.dp, vertical = 9.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -614,15 +593,15 @@ fun QuickActionModal(
                             Icon(
                                 imageVector = Icons.Outlined.Close,
                                 contentDescription = null,
-                                tint = SX.Text2,
+                                tint = lerp(SX.Text2, SXFocus.On, cp),
                                 modifier = Modifier.size(15.dp)
                             )
                         }
                         Spacer(Modifier.width(11.dp))
                         Text(
                             text = stringResource(R.string.cancel),
-                            color = if (cancelFocused) Color.White else SX.Text2,
-                            fontSize = 12.sp,
+                            color = lerp(SX.Text2, SXFocus.On, cp),
+                            fontSize = 13.5.sp,
                             fontWeight = FontWeight.Medium
                         )
                     }

@@ -89,7 +89,7 @@ fun PinPrompt(title: String, error: Boolean, onSubmit: (String) -> Unit, onCance
                 LoginField(stringResource(R.string.pin_label), pin, { pin = it.filter { c -> c.isDigit() }.take(8) }, password = true)
                 if (error) Text(stringResource(R.string.pin_wrong), color = SX.Danger, fontSize = 12.sp, modifier = Modifier.padding(bottom = 8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-                    ActionChip(stringResource(R.string.pin_ok)) { if (pin.length >= 4) onSubmit(pin) }
+                    PillButton(stringResource(R.string.pin_ok), true) { if (pin.length >= 4) onSubmit(pin) }
                     ActionChip(stringResource(R.string.cancel)) { onCancel() }
                 }
             }

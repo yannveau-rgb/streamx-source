@@ -20,6 +20,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.DeleteOutline
@@ -153,28 +154,15 @@ fun BrowseScreen(kind: Kind, account: Account, title: Int, onDetail: OpenDetail)
             }
     ) {
     Column(Modifier.fillMaxSize().padding(top = 22.dp)) {
-        Row(Modifier.padding(horizontal = 28.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                Modifier
-                    .size(36.dp)
-                    .clip(RoundedCornerShape(11.dp))
-                    .background(Brush.linearGradient(listOf(navTheme.c1, navTheme.c2))),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = when (kind) {
-                        Kind.VOD -> Icons.Outlined.Movie
-                        Kind.SERIES -> Icons.Outlined.Layers
-                        Kind.LIVE -> Icons.Outlined.Tv
-                    },
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-            Spacer(Modifier.width(12.dp))
-            Text(stringResource(title), color = Color.White, fontSize = 23.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-        }
+        PageHeader(
+            when (kind) {
+                Kind.VOD -> NavIconType.MOVIES
+                Kind.SERIES -> NavIconType.SERIES
+                Kind.LIVE -> NavIconType.LIVE
+            },
+            stringResource(title),
+            modifier = Modifier.padding(horizontal = 28.dp)
+        )
         Spacer(Modifier.height(12.dp))
         // TV en direct : « Gérer » sous le titre, à gauche
         if (!netflix) {
@@ -230,7 +218,8 @@ fun BrowseScreen(kind: Kind, account: Account, title: Int, onDetail: OpenDetail)
                 if (univRows.isNotEmpty()) item(key = "g_univ") {
                     SelectChip(stringResource(R.string.hub_universes), group == "univ") { group = if (group == "univ") null else "univ" }
                 }
-                item(key = "manage") { ActionChip(stringResource(R.string.cat_manage)) { managing = true } }
+                item(key = "sep") { Box(Modifier.padding(horizontal = 4.dp).width(1.dp).height(20.dp).background(Color(0x26FFFFFF))) }
+                item(key = "manage") { ActionChip(stringResource(R.string.cat_manage), icon = Icons.Outlined.Tune) { managing = true } }
             }
             if (group != null) {
                 LazyRow(
@@ -294,7 +283,7 @@ fun BrowseScreen(kind: Kind, account: Account, title: Int, onDetail: OpenDetail)
                             Text(
                                 stringResource(R.string.continue_watching),
                                 color = Color.White,
-                                fontSize = 15.sp,
+                                fontSize = 16.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 modifier = Modifier.padding(bottom = 2.dp)
                             )
@@ -374,7 +363,7 @@ fun EntryShelf(
     onOpen: (Item) -> Unit
 ) {
     Text(
-        title, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold,
+        title, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold,
         maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(bottom = 2.dp, end = 28.dp)
     )
     RowKey("e:$title") {
@@ -412,7 +401,7 @@ fun Shelf(kind: Kind, account: Account, cat: Category, onFocusItem: ((Item) -> U
     }
     val landscape = false
     Text(
-        cat.name, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold,
+        cat.name, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold,
         maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(bottom = 2.dp, end = 28.dp)
     )
     Box(Modifier.height(192.dp)) {
@@ -467,7 +456,7 @@ fun ItemCard(item: Item, landscape: Boolean, onFocus: (() -> Unit)? = null, onCl
                     QuickAction(
                         label = stringResource(R.string.action_remove_resume),
                         icon = Icons.Outlined.DeleteOutline,
-                        accent = Color(0xFFFF4D6D),
+                        accent = SX.Danger,
                         onSelect = { watchKeys.forEach { k -> History.remove(ctx, k) } }
                     )
                 )
@@ -492,7 +481,7 @@ fun ItemCard(item: Item, landscape: Boolean, onFocus: (() -> Unit)? = null, onCl
             subtitle = sub,
             image = item.image,
             landscapeImage = false,
-            accentColor = if (isFav) Color(0xFFEC4899) else SX.VioletLight,
+            accentColor = LocalNavTheme.current.ring,
             actions = actions,
             onDismiss = { showMenu = false }
         )
@@ -514,22 +503,12 @@ fun ItemCard(item: Item, landscape: Boolean, onFocus: (() -> Unit)? = null, onCl
                 shape = shape,
                 cornerRadius = SX.RCard,
                 scale = 1.06f,
-                glowColor = if (isFav) Color(0x75FF4D79) else Color(0x789D7BFF),
-                ringColor = if (isFav) Color(0xFFFF8FA3) else Color(0xFFB983FF),
                 onLongClick = { showMenu = true },
                 onClick = onClick
             )
             .clip(shape)
             .background(SX.Placeholder)
-            .border(
-                width = if (isFav) 1.dp else 0.8.dp,
-                brush = if (isFav) {
-                    Brush.verticalGradient(listOf(Color(0x99FF4D79), Color(0x33F59E0B)))
-                } else {
-                    Brush.verticalGradient(listOf(Color(0x38FFFFFF), Color(0x0EFFFFFF)))
-                },
-                shape = shape
-            )
+            .border(1.dp, Color(0x1FFFFFFF), shape)
     ) {
         if (item.image != null) {
             NetImage(
@@ -548,26 +527,26 @@ fun ItemCard(item: Item, landscape: Boolean, onFocus: (() -> Unit)? = null, onCl
         // Badge Favori ♥ en haut à gauche
         if (isFav) FavBadge(Modifier.align(Alignment.TopStart).padding(6.dp))
         // Note en haut à droite des affiches (films et séries).
-        if (item.rating >= 1f) {
+        // (affichée seulement sur la carte focalisée)
+        if (item.rating >= 1f && focused) {
             val badgeShape = RoundedCornerShape(SX.RBadge)
             Text(
                 "★ " + "%.1f".format(item.rating),
-                color = Color.White,
-                fontSize = 10.sp,
+                color = SX.Gold,
+                fontSize = 10.5.sp,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .padding(6.dp)
                     .clip(badgeShape)
-                    .background(SX.Scrim)
-                    .border(0.6.dp, Color(0x38FFFFFF), badgeShape)
+                    .background(Color(0x99000000))
                     .padding(horizontal = 6.dp, vertical = 2.dp)
             )
         }
         if (showTitle) Text(
             cleanTitle(item.name),
             color = Color.White,
-            fontSize = 10.sp,
+            fontSize = 10.5.sp,
             fontWeight = FontWeight.SemiBold,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,

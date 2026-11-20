@@ -2,6 +2,9 @@ package eu.streamx.app
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -102,36 +105,44 @@ suspend fun XtreamApi.episodes(a: Account, seriesId: String): Map<Int, List<Epis
 }
 
 @Composable
-fun SelectChip(label: String, selected: Boolean, modifier: Modifier = Modifier, icon: androidx.compose.ui.graphics.vector.ImageVector? = null, onClick: () -> Unit) {
+fun SelectChip(
+    label: String, selected: Boolean, modifier: Modifier = Modifier,
+    icon: androidx.compose.ui.graphics.vector.ImageVector? = null, onClick: () -> Unit
+) {
+    val th = LocalNavTheme.current
+    val lowRam = LocalLowRamMode.current
     val pill = RoundedCornerShape(50)
-    if (icon != null) {
-        // Pastille avec une petite icône devant le texte (ex. le pouce de l'onglet « J'aime » de Tube).
-        Row(
-            modifier = modifier
-                .tvFocus(pill, onClick = onClick)
-                .then(
-                    if (selected) Modifier.clip(pill).background(Brush.horizontalGradient(listOf(SX.Violet, SX.VioletLight)))
-                    else Modifier.glass(pill, 1.2f)
-                )
-                .padding(start = 13.dp, end = 16.dp, top = 8.dp, bottom = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(icon, null, tint = Color.White, modifier = Modifier.size(15.dp))
-            Spacer(Modifier.width(7.dp))
-            Text(label, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+    var focused by remember { mutableStateOf(false) }
+    val pState = rememberFocusProgress(focused)
+    val p = pState.value
+    val restFill = if (selected) th.c1.copy(alpha = 0.22f) else SXFocus.RestFill
+    val focusFill = if (selected) lerp(Color.White, th.ring, 0.30f) else SXFocus.Fill
+    val fill = lerp(restFill, focusFill, p)
+    val content = lerp(if (selected) th.ring else SXFocus.RestText, SXFocus.On, p)
+    val ink = lerp(th.ring, lerp(th.c1, Color.Black, 0.35f), p)
+    val stroke = (if (selected) th.ring.copy(alpha = 0.70f) else SXFocus.RestStroke).let { it.copy(alpha = it.alpha * (1f - p)) }
+    val lead = icon ?: if (selected) Icons.Outlined.Check else null
+    Row(
+        modifier
+            .height(36.dp)
+            .onFocusChanged { focused = it.isFocused }
+            .tvFocus(pill, scale = 1.08f, decorate = false, onClick = onClick)
+            .focusShadow({ pState.value }, pill, enabled = !lowRam)
+            .clip(pill)
+            .background(fill)
+            .border(if (selected) 1.2.dp else 1.dp, stroke, pill)
+            .padding(start = if (lead != null) 12.dp else 16.dp, end = 16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        if (lead != null) {
+            Icon(lead, null, tint = if (icon != null) content else ink, modifier = Modifier.size(15.dp))
+            Spacer(Modifier.width(6.dp))
         }
-        return
+        Text(
+            label, color = content, fontSize = 13.5.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, letterSpacing = 0.1.sp,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium
+        )
     }
-    Text(
-        label, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1,
-        modifier = modifier
-            .tvFocus(pill, onClick = onClick)
-            .then(
-                if (selected) Modifier.clip(pill).background(Brush.horizontalGradient(listOf(SX.Violet, SX.VioletLight)))
-                else Modifier.glass(pill, 1.2f)
-            )
-            .padding(horizontal = 16.dp, vertical = 8.dp)
-    )
 }
 
 @Composable
@@ -177,7 +188,7 @@ fun SeriesScreen(account: Account, item: Item, onBack: () -> Unit) {
                     val badge = RoundedCornerShape(SX.RBadge)
                     Text(
                         stringResource(R.string.badge_series),
-                        color = Color.White, fontSize = 9.5.sp, fontWeight = FontWeight.Medium,
+                        color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Medium,
                         modifier = Modifier.glass(badge, 0.95f).padding(horizontal = 9.dp, vertical = 2.5.dp)
                     )
                     Spacer(Modifier.height(6.dp))
@@ -225,23 +236,28 @@ fun SeriesScreen(account: Account, item: Item, onBack: () -> Unit) {
                     Spacer(Modifier.height(8.dp))
                     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 28.dp, bottom = 20.dp)) {
                         items(d[season] ?: emptyList(), key = { it.id }) { e ->
-                            val shape = RoundedCornerShape(12.dp)
+                            val shape = RoundedCornerShape(SX.RTile)
                             val key = "ep:" + e.id
                             val w = watching.firstOrNull { it.key == key }
+                            var rowFocused by remember { mutableStateOf(false) }
+                            val rp = rememberFocusProgress(rowFocused).value
+                            val rowInk = lerp(Color.White, SXFocus.On, rp)
                             Row(
                                 Modifier
                                     .fillMaxWidth()
                                     .padding(end = 28.dp)
-                                    .tvFocus(shape, scale = 1.02f) { play(e, season, w?.pos ?: 0L) }
-                                    .glass(shape, 0.75f)
+                                    .onFocusChanged { rowFocused = it.isFocused }
+                                    .tvFocus(shape, scale = 1.0f, decorate = false) { play(e, season, w?.pos ?: 0L) }
+                                    .clip(shape)
+                                    .background(lerp(Color(0x0FFFFFFF), SXFocus.Fill, rp))
                                     .padding(horizontal = 16.dp, vertical = 10.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text("E${e.num}", color = SX.VioletLight, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.width(42.dp))
+                                Text("E${e.num}", color = lerp(LocalNavTheme.current.ring, SXFocus.On, rp), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.width(42.dp))
                                 Column(Modifier.weight(1f)) {
                                     Text(
                                         e.title.ifBlank { stringResource(R.string.episode_label, e.num) },
-                                        color = if (key in seen) SX.Muted else Color.White, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis
+                                        color = if (key in seen) lerp(SX.Muted, SXFocus.On, rp) else rowInk, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis
                                     )
                                     if (w != null && w.dur > 0) {
                                         Spacer(Modifier.height(4.dp))
@@ -250,7 +266,7 @@ fun SeriesScreen(account: Account, item: Item, onBack: () -> Unit) {
                                                 Modifier
                                                     .fillMaxWidth((w.pos.toFloat() / w.dur).coerceIn(0.02f, 1f))
                                                     .fillMaxHeight()
-                                                    .background(Brush.horizontalGradient(listOf(SX.Violet, SX.VioletLight)))
+                                                    .background(Color(0xE6FFFFFF))
                                             )
                                         }
                                     }

@@ -18,6 +18,8 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -107,7 +109,7 @@ fun LangPicker(
 ) {
     var open by remember { mutableStateOf(false) }
     val current = special.firstOrNull { it.first == value }?.second ?: Langs.label(value)
-    ActionChip(current + "  ▾") { open = true }
+    ActionChip(current, trailingIcon = Icons.Outlined.ExpandMore) { open = true }
     if (open) {
         val entries = special + languages
         val start = entries.indexOfFirst { it.first == value }.coerceAtLeast(0)
@@ -126,20 +128,10 @@ fun LangPicker(
                         items(entries.size) { i ->
                             val (v, label) = entries[i]
                             val sel = v == value
-                            val pill = RoundedCornerShape(50)
-                            Text(
-                                label, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
-                                maxLines = 1, overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .then(if (i == start) Modifier.focusRequester(req) else Modifier)
-                                    .tvFocus(pill, onClick = { onPick(v); open = false })
-                                    .then(
-                                        if (sel) Modifier.clip(pill).background(Brush.horizontalGradient(listOf(SX.Violet, SX.VioletLight)))
-                                        else Modifier.glass(pill, 1.2f)
-                                    )
-                                    .padding(horizontal = 16.dp, vertical = 9.dp)
-                            )
+                            SelectChip(
+                                label, sel,
+                                Modifier.fillMaxWidth().then(if (i == start) Modifier.focusRequester(req) else Modifier)
+                            ) { onPick(v); open = false }
                         }
                     }
                 }

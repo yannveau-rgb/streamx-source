@@ -71,6 +71,8 @@ import kotlin.math.pow
  */
 data class NavTheme(val c1: Color, val c2: Color, val glow: Color, val ring: Color)
 
+val LocalNavTheme = androidx.compose.runtime.staticCompositionLocalOf { navThemeOf(NavIconType.HOME) }
+
 fun navThemeOf(type: NavIconType): NavTheme = when (type) {
     NavIconType.HOME -> NavTheme(Color(0xFF7B52FF), Color(0xFF3DE0C5), Color(0x788B5CF6), Color(0xFFB99AFF))
     NavIconType.LIVE -> NavTheme(Color(0xFF2563EB), Color(0xFF06B6D4), Color(0x7806B6D4), Color(0xFF67E8F9))

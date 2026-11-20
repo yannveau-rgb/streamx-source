@@ -31,6 +31,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -117,12 +118,9 @@ fun HomeSearchBar(account: Account, onOpenAll: (String) -> Unit, onDetail: OpenD
             Modifier
                 .fillMaxWidth()
                 .height(40.dp)
-                .glass(pill, if (barFocused) 1.5f else 1.1f)
-                .border(
-                    if (barFocused) 1.6.dp else 0.6.dp,
-                    if (barFocused) Brush.horizontalGradient(listOf(Color(0xFFB983FF), Color(0xFF3DE0C5))) else SolidColor(Color(0x40FFFFFF)),
-                    pill
-                )
+                .glass(pill, 1.1f)
+                .background(if (barFocused) Color(0x29FFFFFF) else Color.Transparent, pill)
+                .border(if (barFocused) 2.dp else 0.6.dp, if (barFocused) Color(0xF2FFFFFF) else Color(0x40FFFFFF), pill)
                 .padding(horizontal = 14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -136,7 +134,7 @@ fun HomeSearchBar(account: Account, onOpenAll: (String) -> Unit, onDetail: OpenD
                     value = tf,
                     onValueChange = { tf = it }, singleLine = true, readOnly = !editing,
                     textStyle = TextStyle(color = Color.White, fontSize = 13.sp),
-                    cursorBrush = SolidColor(Color(0xFFB983FF)),
+                    cursorBrush = SolidColor(LocalNavTheme.current.ring),
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                     keyboardActions = KeyboardActions(onSearch = { if (query.isNotBlank()) { onOpenAll(query.trim()); setQuery(""); focusManager.clearFocus() } }),
                     modifier = Modifier
@@ -230,11 +228,15 @@ fun HomeSearchBar(account: Account, onOpenAll: (String) -> Unit, onDetail: OpenD
 private fun SuggestionRow(e: Entry, kind: Kind, onClick: () -> Unit) {
     val shape = RoundedCornerShape(10.dp)
     val w = if (kind == Kind.LIVE) 44.dp else 28.dp
+    var focused by remember { mutableStateOf(false) }
+    val p = rememberFocusProgress(focused).value
     Row(
         Modifier
             .fillMaxWidth()
-            .tvFocus(shape, cornerRadius = 10.dp, scale = 1.02f, onClick = onClick)
+            .onFocusChanged { focused = it.isFocused }
+            .tvFocus(shape, scale = 1.0f, decorate = false, onClick = onClick)
             .clip(shape)
+            .background(lerp(Color.Transparent, SXFocus.Fill, p))
             .padding(horizontal = 6.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -250,13 +252,13 @@ private fun SuggestionRow(e: Entry, kind: Kind, onClick: () -> Unit) {
         }
         Spacer(Modifier.width(10.dp))
         Column(Modifier.weight(1f)) {
-            Text(cleanTitle(e.name), color = Color.White, fontSize = 12.5.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(cleanTitle(e.name), color = lerp(Color.White, SXFocus.On, p), fontSize = 12.5.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
             val sub = listOfNotNull(
                 stringResource(when (kind) { Kind.VOD -> R.string.badge_movie; Kind.SERIES -> R.string.badge_series; Kind.LIVE -> R.string.badge_live }),
                 yearOf(e.name)
             ).joinToString("  ·  ")
-            Text(sub, color = SX.Muted, fontSize = 10.5.sp, maxLines = 1)
+            Text(sub, color = lerp(SX.Muted, SXFocus.On.copy(alpha = 0.7f), p), fontSize = 10.5.sp, maxLines = 1)
         }
-        Box(Modifier.size(6.dp).clip(CircleShape).background(when (kind) { Kind.VOD -> Color(0xFFA77BFF); Kind.SERIES -> Color(0xFFFF7A9C); Kind.LIVE -> Color(0xFF4DA3FF) }))
+        Box(Modifier.size(6.dp).clip(CircleShape).background(when (kind) { Kind.VOD -> navThemeOf(NavIconType.MOVIES).c1; Kind.SERIES -> navThemeOf(NavIconType.SERIES).c1; Kind.LIVE -> navThemeOf(NavIconType.LIVE).c1 }))
     }
 }

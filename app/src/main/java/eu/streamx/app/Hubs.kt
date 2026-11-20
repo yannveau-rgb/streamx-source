@@ -19,6 +19,8 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.ChildCare
 import androidx.compose.material.icons.outlined.MusicNote
 import androidx.compose.material3.Icon
@@ -357,39 +359,14 @@ fun ThemedHubScreen(theme: HubTheme, account: Account, onDetail: OpenDetail) {
             }
     ) {
         Column(Modifier.fillMaxSize().padding(top = 22.dp)) {
-            Row(
-                Modifier.padding(horizontal = 28.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(
-                    Modifier
-                        .size(if (theme == HubTheme.KIDS) 44.dp else 36.dp)
-                        .clip(RoundedCornerShape(if (theme == HubTheme.KIDS) 22.dp else 11.dp))
-                        .background(Brush.linearGradient(listOf(navTheme.c1, navTheme.c2))),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = if (theme == HubTheme.KIDS) Icons.Outlined.ChildCare else Icons.Outlined.MusicNote,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-                Spacer(Modifier.width(12.dp))
-                Column(Modifier.weight(1f)) {
-                    Text(
-                        text = stringResource(if (theme == HubTheme.KIDS) R.string.nav_kids else R.string.nav_music),
-                        color = Color.White,
-                        fontSize = if (theme == HubTheme.KIDS) 28.sp else 23.sp,
-                        fontWeight = if (theme == HubTheme.KIDS) FontWeight.ExtraBold else FontWeight.Bold
-                    )
-                    Text(
-                        text = stringResource(if (theme == HubTheme.KIDS) R.string.hub_kids_sub else R.string.hub_music_sub),
-                        color = SX.Muted,
-                        fontSize = 11.5.sp
-                    )
-                }
-            }
+            PageHeader(
+                if (theme == HubTheme.KIDS) NavIconType.KIDS else NavIconType.MUSIC,
+                stringResource(if (theme == HubTheme.KIDS) R.string.nav_kids else R.string.nav_music),
+                stringResource(if (theme == HubTheme.KIDS) R.string.hub_kids_sub else R.string.hub_music_sub),
+                modifier = Modifier.padding(horizontal = 28.dp),
+                tileSize = if (theme == HubTheme.KIDS) 40.dp else 36.dp,
+                tileCorner = if (theme == HubTheme.KIDS) 20.dp else 11.dp
+            )
             Spacer(Modifier.height(12.dp))
 
             // Pastilles de filtrage + favoris rapides
@@ -403,7 +380,7 @@ fun ThemedHubScreen(theme: HubTheme, account: Account, onDetail: OpenDetail) {
                 val favTotal = favLive.size + favVod.size
                 if (favTotal > 0) {
                     item(key = "favs") {
-                        SelectChip("♥ " + stringResource(R.string.favorites) + " ($favTotal)", filter == "favs") { filter = "favs" }
+                        SelectChip(stringResource(R.string.favorites) + " ($favTotal)", filter == "favs", icon = androidx.compose.material.icons.Icons.Filled.Favorite) { filter = "favs" }
                     }
                 }
                 if (hasUniv) {
@@ -446,7 +423,8 @@ fun ThemedHubScreen(theme: HubTheme, account: Account, onDetail: OpenDetail) {
                     val isChFav = Favorites.contains(ctx, Kind.LIVE, ch.id)
                     item(key = "toggle_fav") {
                         ActionChip(
-                            if (isChFav) "♥ " + cleanChannelName(ch.name) else "+ ♥ " + cleanChannelName(ch.name)
+                            cleanChannelName(ch.name),
+                            icon = if (isChFav) androidx.compose.material.icons.Icons.Filled.Favorite else androidx.compose.material.icons.Icons.Outlined.FavoriteBorder
                         ) {
                             Favorites.toggle(ctx, Kind.LIVE, ch, hubTag)
                         }
@@ -486,14 +464,14 @@ fun ThemedHubScreen(theme: HubTheme, account: Account, onDetail: OpenDetail) {
                                         .background(Brush.horizontalGradient(listOf(navTheme.c1, navTheme.c2)))
                                         .padding(horizontal = 6.dp, vertical = 2.dp)
                                 ) {
-                                    Text("♥", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                    Icon(androidx.compose.material.icons.Icons.Filled.Favorite, null, tint = Color.White, modifier = Modifier.size(11.dp))
                                 }
                                 Spacer(Modifier.width(8.dp))
                                 Text(
                                     text = stringResource(if (theme == HubTheme.KIDS) R.string.favs_kids_live else R.string.favs_music_live),
                                     color = Color.White,
-                                    fontSize = 15.5.sp,
-                                    fontWeight = FontWeight.Bold
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.SemiBold
                                 )
                             }
                             LazyRow(
@@ -527,14 +505,14 @@ fun ThemedHubScreen(theme: HubTheme, account: Account, onDetail: OpenDetail) {
                                         .background(Brush.horizontalGradient(listOf(navTheme.c1, navTheme.c2)))
                                         .padding(horizontal = 6.dp, vertical = 2.dp)
                                 ) {
-                                    Text("♥", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                    Icon(androidx.compose.material.icons.Icons.Filled.Favorite, null, tint = Color.White, modifier = Modifier.size(11.dp))
                                 }
                                 Spacer(Modifier.width(8.dp))
                                 Text(
                                     text = if (theme == HubTheme.KIDS) "Films & Séries favoris · Enfants" else "Concerts & Titres favoris · Musique",
                                     color = Color.White,
-                                    fontSize = 15.5.sp,
-                                    fontWeight = FontWeight.Bold
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.SemiBold
                                 )
                             }
                             LazyRow(
@@ -564,7 +542,7 @@ fun ThemedHubScreen(theme: HubTheme, account: Account, onDetail: OpenDetail) {
                                 Text(
                                     stringResource(R.string.hub_other_live),
                                     color = Color.White,
-                                    fontSize = 15.sp,
+                                    fontSize = 16.sp,
                                     fontWeight = FontWeight.SemiBold,
                                     modifier = Modifier.padding(bottom = 2.dp, end = 28.dp)
                                 )

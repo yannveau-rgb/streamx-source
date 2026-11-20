@@ -152,6 +152,7 @@ fun HomeScreen(
                 horizontalArrangement = Arrangement.spacedBy(11.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                HomeClockWeather()
                 HomeSearchBar(account, onSearch, onDetail)
                 RoundGlassButton(Icons.Outlined.Notifications, bellDot, onBell, description = stringResource(R.string.notifications))
             }
@@ -177,7 +178,7 @@ fun HomeScreen(
         }
         because?.let { (w, kind, items) ->
             Text(
-                stringResource(R.string.because_watched, cleanTitle(w.title).replace(Regex("\\s*[·\\-–]\\s*S\\d+\\s*E\\d+.*$"), "")), color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold,
+                stringResource(R.string.because_watched, cleanTitle(w.title).replace(Regex("\\s*[·\\-–]\\s*S\\d+\\s*E\\d+.*$"), "")), color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold,
                 maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(start = 28.dp, end = 28.dp, top = 10.dp, bottom = 8.dp)
             )
             RowKey("home_because") {
@@ -236,19 +237,19 @@ fun SuggestCard(item: Item, onClick: () -> Unit) {
     Box(
         Modifier
             .width(250.dp)
-            .height(64.dp)
+            .height(72.dp)
             .tvFocus(shape = shape, cornerRadius = 12.dp, scale = 1.05f, onClick = onClick)
             .clip(shape)
             .background(cardBase)
             .glass(shape, 0.85f)
     ) {
         Box(Modifier.width(110.dp).fillMaxHeight().background(Color(0xFF22254A))) {
-            NetImage(url = item.image, widthDp = 110.dp, heightDp = 64.dp, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+            NetImage(url = item.image, widthDp = 110.dp, heightDp = 72.dp, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
         }
         Box(Modifier.width(110.dp).fillMaxHeight().background(Brush.horizontalGradient(0.38f to Color.Transparent, 1f to cardBase)))
         Column(Modifier.align(Alignment.CenterStart).padding(start = 104.dp, end = 12.dp)) {
-            Text(cleanTitle(item.name), color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(stringResource(R.string.suggestion), color = SX.Muted, fontSize = 9.5.sp)
+            Text(cleanTitle(item.name), color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(stringResource(R.string.suggestion), color = SX.Muted, fontSize = 11.sp)
         }
     }
 }
@@ -282,7 +283,7 @@ fun ResumeCard(w: Watch, account: Account, onDetail: OpenDetail) {
                 QuickAction(
                     label = stringResource(R.string.action_remove_resume),
                     icon = Icons.Outlined.DeleteOutline,
-                    accent = Color(0xFFFF4D6D),
+                    accent = SX.Danger,
                     onSelect = { History.remove(ctx, w.key) }
                 )
             )
@@ -310,7 +311,7 @@ fun ResumeCard(w: Watch, account: Account, onDetail: OpenDetail) {
             subtitle = stringResource(R.string.continue_watching) + "  ·  " + stringResource(R.string.minutes_left, remainingMin),
             image = w.image,
             landscapeImage = false,
-            accentColor = Color(0xFFFF4D6D),
+            accentColor = LocalNavTheme.current.ring,
             actions = actions,
             onDismiss = { showMenu = false }
         )
@@ -319,7 +320,7 @@ fun ResumeCard(w: Watch, account: Account, onDetail: OpenDetail) {
     Box(
         Modifier
             .width(250.dp)
-            .height(64.dp)
+            .height(72.dp)
             .tvFocus(
                 shape = shape,
                 cornerRadius = 12.dp,
@@ -335,7 +336,7 @@ fun ResumeCard(w: Watch, account: Account, onDetail: OpenDetail) {
             NetImage(
                 url = w.image,
                 widthDp = 110.dp,
-                heightDp = 64.dp,
+                heightDp = 72.dp,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()
             )
@@ -360,15 +361,15 @@ fun ResumeCard(w: Watch, account: Account, onDetail: OpenDetail) {
         }
         if (isFav) FavBadge(Modifier.align(Alignment.TopEnd).padding(top = 5.dp, end = 6.dp), size = 17.dp)
         Column(Modifier.align(Alignment.CenterStart).padding(start = 104.dp, end = if (isFav) 24.dp else 12.dp)) {
-            Text(cleanTitle(w.title), color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(leftText, color = SX.Muted, fontSize = 9.5.sp)
-            Spacer(Modifier.height(5.dp))
+            Text(cleanTitle(w.title), color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(leftText, color = SX.Muted, fontSize = 11.sp)
+            Spacer(Modifier.height(4.dp))
             if (!notStarted) Box(Modifier.fillMaxWidth().height(2.5.dp).clip(CircleShape).background(Color(0x33FFFFFF))) {
                 Box(
                     Modifier
                         .fillMaxWidth((w.pos.toFloat() / w.dur.coerceAtLeast(1L)).coerceIn(0.02f, 1f))
                         .fillMaxHeight()
-                        .background(Brush.horizontalGradient(listOf(SX.Violet, SX.VioletLight)))
+                        .background(Color(0xE6FFFFFF))
                 )
             }
         }
@@ -491,7 +492,7 @@ fun Hero(
                         val badge = RoundedCornerShape(SX.RBadge)
                         Text(
                             stringResource(if (cur.kind == Kind.SERIES) R.string.badge_series else R.string.badge_movie),
-                            color = Color.White, fontSize = 9.5.sp, fontWeight = FontWeight.Medium,
+                            color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Medium,
                             modifier = Modifier
                                 .glass(badge, 0.95f)
                                 .padding(horizontal = 9.dp, vertical = 2.5.dp)

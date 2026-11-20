@@ -257,39 +257,10 @@ fun FavoritesScreen(account: Account, onDetail: OpenDetail) {
             }
     ) {
         Column(Modifier.fillMaxSize().padding(top = 22.dp)) {
-            Row(
-                Modifier.padding(horizontal = 28.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(
-                    Modifier
-                        .size(36.dp)
-                        .clip(RoundedCornerShape(11.dp))
-                        .background(Brush.linearGradient(listOf(theme.c1, theme.c2))),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.FavoriteBorder,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-                Spacer(Modifier.width(12.dp))
-                Column(Modifier.weight(1f)) {
-                    Text(
-                        text = stringResource(R.string.favorites),
-                        color = Color.White,
-                        fontSize = 23.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = stringResource(R.string.favs_subtitle),
-                        color = SX.Muted,
-                        fontSize = 11.5.sp
-                    )
-                }
-            }
+            PageHeader(
+                NavIconType.FAVORITES, stringResource(R.string.favorites), stringResource(R.string.favs_subtitle),
+                modifier = Modifier.padding(horizontal = 28.dp)
+            )
             Spacer(Modifier.height(12.dp))
 
             if (favs.isEmpty()) {
@@ -397,7 +368,7 @@ private fun FavShelf(
     Text(
         title,
         color = Color.White,
-        fontSize = 15.sp,
+        fontSize = 16.sp,
         fontWeight = FontWeight.SemiBold,
         modifier = Modifier.padding(bottom = 2.dp)
     )

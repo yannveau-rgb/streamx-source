@@ -2,6 +2,11 @@ package eu.streamx.app
 
 import android.content.Context
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.material3.Icon
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -158,16 +163,17 @@ fun CategoriesScreen(kind: Kind, account: Account, title: Int, onDone: (() -> Un
     }
 
     Column(Modifier.fillMaxSize().padding(start = 28.dp, end = 28.dp, top = 24.dp)) {
-        Text(stringResource(title), color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
         val list = cats
+        PageHeader(
+            when (kind) { Kind.VOD -> NavIconType.MOVIES; Kind.SERIES -> NavIconType.SERIES; Kind.LIVE -> NavIconType.LIVE },
+            stringResource(title),
+            if (list != null) stringResource(R.string.cat_visible, list.count { it.id !in hidden }, list.size) else null
+        )
+        Spacer(Modifier.height(10.dp))
         if (list != null) {
             // Langue détectée aussi par le contenu (préfixe « FR: » des chaînes), pas seulement par le nom de la catégorie.
             val frSet = remember(list, kind, Catalog.version) { CategoryRules.frenchIds(kind, list) }
             val visible = list.count { it.id !in hidden }
-            Text(
-                stringResource(R.string.cat_visible, visible, list.size),
-                color = SX.Muted, fontSize = 12.sp, modifier = Modifier.padding(top = 2.dp, bottom = 10.dp)
-            )
             Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
                 if (onDone != null) ActionChip(stringResource(R.string.cat_done)) { onDone() }
                 ActionChip(stringResource(R.string.cat_fr_only)) {
@@ -241,28 +247,49 @@ fun CategoriesScreen(kind: Kind, account: Account, title: Int, onDone: (() -> Un
 }
 
 @Composable
-fun ActionChip(label: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
+fun ActionChip(
+    label: String, modifier: Modifier = Modifier, icon: ImageVector? = null,
+    trailingIcon: ImageVector? = null, onClick: () -> Unit
+) {
+    val lowRam = LocalLowRamMode.current
     val pill = RoundedCornerShape(50)
-    Text(
-        label, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1,
-        modifier = modifier.tvFocus(pill, onClick = onClick).glass(pill, 1.2f)
-            .padding(horizontal = 16.dp, vertical = 8.dp)
-    )
+    var focused by remember { mutableStateOf(false) }
+    val pState = rememberFocusProgress(focused)
+    val p = pState.value
+    val content = lerp(Color(0xB8FFFFFF), SXFocus.On, p)
+    Row(
+        modifier.height(36.dp)
+            .onFocusChanged { focused = it.isFocused }
+            .tvFocus(pill, scale = 1.08f, decorate = false, onClick = onClick)
+            .focusShadow({ pState.value }, pill, enabled = !lowRam)
+            .clip(pill).background(lerp(Color.Transparent, SXFocus.Fill, p))
+            .border(1.dp, SXFocus.RestStroke.copy(alpha = 0.15f * (1f - p)), pill)
+            .padding(horizontal = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        if (icon != null) { Icon(icon, null, tint = content, modifier = Modifier.size(16.dp)); Spacer(Modifier.width(6.dp)) }
+        Text(label, color = content, fontSize = 13.5.sp, fontWeight = FontWeight.Medium, maxLines = 1)
+        if (trailingIcon != null) { Spacer(Modifier.width(4.dp)); Icon(trailingIcon, null, tint = content, modifier = Modifier.size(18.dp)) }
+    }
 }
 
 @Composable
 fun CategoryRow(name: String, on: Boolean, onToggle: () -> Unit) {
-    val shape = RoundedCornerShape(12.dp)
+    val shape = RoundedCornerShape(SX.RTile)
+    var focused by remember { mutableStateOf(false) }
+    val p = rememberFocusProgress(focused).value
     Row(
         Modifier
             .fillMaxWidth()
-            .tvFocus(shape, scale = 1.02f, onClick = onToggle)
-            .glass(shape, if (on) 0.78f else 0.35f)
+            .onFocusChanged { focused = it.isFocused }
+            .tvFocus(shape, scale = 1.0f, decorate = false, onClick = onToggle)
+            .clip(shape)
+            .background(lerp(if (on) Color(0x14FFFFFF) else Color(0x08FFFFFF), SXFocus.Fill, p))
             .padding(horizontal = 16.dp, vertical = 9.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
-            name, color = if (on) Color.White else SX.Muted, fontSize = 13.sp, maxLines = 1,
+            name, color = lerp(if (on) Color.White else SX.Muted, SXFocus.On, p), fontSize = 13.sp, maxLines = 1,
             overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f)
         )
         Spacer(Modifier.width(12.dp))

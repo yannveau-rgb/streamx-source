@@ -19,6 +19,8 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material3.Icon
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.compositionLocalOf
@@ -347,7 +349,7 @@ fun StreamXApp() {
 }
 @Composable
 fun LoginField(label: String, value: String, onChange: (String) -> Unit, password: Boolean = false, uri: Boolean = false) {
-    Text(label, color = SX.Muted, fontSize = 10.sp, modifier = Modifier.padding(bottom = 4.dp))
+    Text(label, color = SX.Muted, fontSize = 10.5.sp, modifier = Modifier.padding(bottom = 4.dp))
     GlassInputBox(
         value = value,
         onValueChange = onChange,
@@ -412,12 +414,10 @@ fun LoginScreen(onCancel: (() -> Unit)? = null, onSuccess: (Account, AccountInfo
                 LoginField(stringResource(R.string.login_user), user, { user = it; errorText = null })
                 LoginField(stringResource(R.string.login_pass), pass, { pass = it; errorText = null }, password = true)
 
-                val pill = RoundedCornerShape(50)
-                Text(
+                PillButton(
                     if (busy) stringResource(R.string.logging_in) else stringResource(R.string.login_button),
-                    color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Medium,
-                    modifier = Modifier.fillMaxWidth()
-                        .tvFocus(pill) {
+                    true, Modifier.fillMaxWidth()
+                ) {
                             if (!busy && server.isNotBlank() && user.isNotBlank() && pass.isNotBlank()) {
                                 busy = true
                                 errorText = null
@@ -433,11 +433,7 @@ fun LoginScreen(onCancel: (() -> Unit)? = null, onSuccess: (Account, AccountInfo
                                     }
                                 }
                             }
-                        }
-                        .clip(pill).background(Brush.horizontalGradient(listOf(SX.Violet, SX.VioletLight)))
-                        .padding(vertical = 10.dp),
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                )
+                }
             } else {
                 if (savedLists.isNotEmpty()) {
                     Text("Playlist enregistrée sur cette télé :", color = SX.VioletLight, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(bottom = 6.dp))
@@ -475,11 +471,11 @@ fun LoginScreen(onCancel: (() -> Unit)? = null, onSuccess: (Account, AccountInfo
                                 .padding(horizontal = 12.dp, vertical = 8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text("▶", color = SX.VioletLight, fontSize = 13.sp)
+                            Icon(androidx.compose.material.icons.Icons.Filled.PlayArrow, null, tint = LocalNavTheme.current.ring, modifier = Modifier.size(16.dp))
                             Spacer(Modifier.width(10.dp))
                             Column(Modifier.weight(1f)) {
                                 Text(saved.name.ifBlank { "Playlist M3U" }, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                Text(runCatching { java.net.URI(saved.url).host }.getOrNull() ?: "playlist", color = SX.Muted, fontSize = 9.5.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)   // l'hôte seulement : l'adresse complète contient souvent des identifiants
+                                Text(runCatching { java.net.URI(saved.url).host }.getOrNull() ?: "playlist", color = SX.Muted, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)   // l'hôte seulement : l'adresse complète contient souvent des identifiants
                             }
                         }
                         Spacer(Modifier.height(8.dp))
@@ -491,12 +487,10 @@ fun LoginScreen(onCancel: (() -> Unit)? = null, onSuccess: (Account, AccountInfo
                 LoginField("Nom (facultatif)", m3uName, { m3uName = it; errorText = null })
                 LoginField("Adresse URL de la playlist", m3uUrl, { m3uUrl = it; errorText = null }, uri = true)
 
-                val pill = RoundedCornerShape(50)
-                Text(
+                PillButton(
                     if (busy) "Chargement de la playlist..." else "Charger la playlist",
-                    color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Medium,
-                    modifier = Modifier.fillMaxWidth()
-                        .tvFocus(pill) {
+                    true, Modifier.fillMaxWidth()
+                ) {
                             if (!busy && m3uUrl.isNotBlank()) {
                                 busy = true
                                 errorText = null
@@ -530,20 +524,12 @@ fun LoginScreen(onCancel: (() -> Unit)? = null, onSuccess: (Account, AccountInfo
                                     }
                                 }
                             }
-                        }
-                        .clip(pill).background(Brush.horizontalGradient(listOf(SX.Violet, SX.VioletLight)))
-                        .padding(vertical = 10.dp),
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                )
+                }
             }
 
             if (onCancel != null) {
-                val pill = RoundedCornerShape(50)
                 Spacer(Modifier.height(8.dp))
-                Text(
-                    stringResource(R.string.cancel), color = Color.White, fontSize = 12.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth().tvFocus(pill, onClick = onCancel).glass(pill, 1.2f).padding(vertical = 8.dp)
-                )
+                PillButton(stringResource(R.string.cancel), false, Modifier.fillMaxWidth()) { onCancel() }
             }
 
             if (errorText != null) {

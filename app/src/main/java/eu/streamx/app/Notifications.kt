@@ -14,6 +14,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -126,16 +128,20 @@ fun NotificationsPanel(modifier: Modifier, info: AccountInfo?, onOpenSeries: (It
                 val what = if (n.season > 0) stringResource(R.string.notif_new_season, n.season)
                 else if (n.newEpisodes > 1) stringResource(R.string.notif_new_episodes, n.newEpisodes)
                 else stringResource(R.string.notif_new_episode)
+                var rowFocused by remember { mutableStateOf(false) }
+                val rp = rememberFocusProgress(rowFocused).value
                 Column(
                     Modifier
                         .fillMaxWidth()
                         .then(if (update == null && i == 0) Modifier.focusRequester(first) else Modifier)
-                        .tvFocus(row, cornerRadius = 10.dp, scale = 1.02f) { onOpenSeries(n.toItem()) }
+                        .onFocusChanged { rowFocused = it.isFocused }
+                        .tvFocus(row, scale = 1.0f, decorate = false) { onOpenSeries(n.toItem()) }
                         .clip(row)
+                        .background(lerp(Color.Transparent, SXFocus.Fill, rp))
                         .padding(horizontal = 8.dp, vertical = 6.dp)
                 ) {
-                    Text(cleanTitle(n.name), color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    Text(what, color = SX.VioletLight, fontSize = 11.sp)
+                    Text(cleanTitle(n.name), color = lerp(Color.White, SXFocus.On, rp), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(what, color = lerp(LocalNavTheme.current.ring, SXFocus.On, rp), fontSize = 11.sp)
                 }
             }
         }

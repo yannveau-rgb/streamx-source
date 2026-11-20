@@ -377,44 +377,12 @@ fun LiveTvScreen(account: Account, onDetail: OpenDetail) {
             }
     ) {
         Column(Modifier.fillMaxSize().padding(top = 22.dp)) {
-            // En-tête TV en direct avec pastille dégradée signature
-            Row(
-                Modifier.padding(horizontal = 28.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(
-                    Modifier
-                        .size(36.dp)
-                        .clip(RoundedCornerShape(11.dp))
-                        .background(Brush.linearGradient(listOf(theme.c1, theme.c2))),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Tv,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-                Spacer(Modifier.width(12.dp))
-                Column(Modifier.weight(1f)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = stringResource(R.string.live),
-                            color = Color.White,
-                            fontSize = 23.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                    Text(
-                        text = stringResource(R.string.live_subtitle),
-                        color = SX.Muted,
-                        fontSize = 11.5.sp
-                    )
-                }
+            PageHeader(
+                NavIconType.LIVE, stringResource(R.string.live), stringResource(R.string.live_subtitle),
+                modifier = Modifier.padding(horizontal = 28.dp),
                 // Réglage de la liste, à part des filtres.
-                ActionChip(stringResource(R.string.cat_manage)) { managing = true }
-            }
+                trailing = { ActionChip(stringResource(R.string.cat_manage)) { managing = true } }
+            )
             Spacer(Modifier.height(10.dp))
 
             // Barre de filtres thématiques + favoris + gestion des catégories
@@ -427,7 +395,7 @@ fun LiveTvScreen(account: Account, onDetail: OpenDetail) {
                 }
                 if (favLive.isNotEmpty()) {
                     item(key = "favs") {
-                        SelectChip("♥ " + stringResource(R.string.favorites) + " (${favLive.size})", facet == "favs") { facet = "favs" }
+                        SelectChip(stringResource(R.string.favorites) + " (${favLive.size})", facet == "favs", icon = androidx.compose.material.icons.Icons.Filled.Favorite) { facet = "favs" }
                     }
                 }
                 if (featuredFrench.isNotEmpty()) {
@@ -443,7 +411,8 @@ fun LiveTvScreen(account: Account, onDetail: OpenDetail) {
                     val isChFav = Favorites.contains(ctx, Kind.LIVE, ch.id)
                     item(key = "toggle_fav") {
                         ActionChip(
-                            if (isChFav) "♥ " + cleanChannelName(ch.name) else "+ ♥ " + cleanChannelName(ch.name)
+                            cleanChannelName(ch.name),
+                            icon = if (isChFav) androidx.compose.material.icons.Icons.Filled.Favorite else androidx.compose.material.icons.Icons.Outlined.FavoriteBorder
                         ) {
                             Favorites.toggle(ctx, Kind.LIVE, ch)
                         }
@@ -493,14 +462,14 @@ fun LiveTvScreen(account: Account, onDetail: OpenDetail) {
                                             .background(Brush.horizontalGradient(listOf(Color(0xFF2DD4BF), Color(0xFF7B52FF))))
                                             .padding(horizontal = 6.dp, vertical = 2.dp)
                                     ) {
-                                        Text("♥", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                        Icon(androidx.compose.material.icons.Icons.Filled.Favorite, null, tint = Color.White, modifier = Modifier.size(11.dp))
                                     }
                                     Spacer(Modifier.width(8.dp))
                                     Text(
                                         text = stringResource(R.string.favs_live),
                                         color = Color.White,
-                                        fontSize = 15.5.sp,
-                                        fontWeight = FontWeight.Bold
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.SemiBold
                                     )
                                 }
                                 LazyRow(
@@ -530,8 +499,8 @@ fun LiveTvScreen(account: Account, onDetail: OpenDetail) {
                                     Text(
                                         text = stringResource(R.string.live_fr_top_title),
                                         color = Color.White,
-                                        fontSize = 15.5.sp,
-                                        fontWeight = FontWeight.Bold
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.SemiBold
                                     )
                                 }
                                 LazyRow(
@@ -607,7 +576,7 @@ fun LiveCategoryShelf(
         if (!redundant) Text(
             text = cleanCatTitle,
             color = Color.White,
-            fontSize = 15.sp,
+            fontSize = 16.sp,
             fontWeight = FontWeight.SemiBold,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
@@ -693,7 +662,7 @@ fun LiveChannelCard(
             subtitle = sub,
             image = item.image,
             landscapeImage = true,
-            accentColor = if (isFav) Color(0xFFEC4899) else Color(0xFF38BDF8),
+            accentColor = LocalNavTheme.current.ring,
             actions = listOf(
                 QuickAction(
                     label = stringResource(if (isFav) R.string.action_remove_fav else R.string.action_add_fav),
@@ -721,8 +690,6 @@ fun LiveChannelCard(
                 shape = shape,
                 cornerRadius = 12.dp,
                 scale = 1.06f,
-                glowColor = if (isFav) Color(0x75FF4D79) else Color(0x7538BDF8),
-                ringColor = if (isFav) Color(0xFFFF8FA3) else Color(0xFF7DD3FC),
                 onLongClick = { showMenu = true },
                 onClick = onClick
             )
@@ -732,15 +699,7 @@ fun LiveChannelCard(
                     listOf(Color(0xFF1A1E36), Color(0xFF101324))
                 )
             )
-            .border(
-                width = if (isFav) 1.dp else 0.8.dp,
-                brush = if (isFav) {
-                    Brush.verticalGradient(listOf(Color(0x99FF4D79), Color(0x33F59E0B)))
-                } else {
-                    Brush.verticalGradient(listOf(Color(0x42FFFFFF), Color(0x14FFFFFF)))
-                },
-                shape = shape
-            )
+            .border(1.dp, Color(0x1FFFFFFF), shape)
     ) {
         // Halo central subtil pour détacher les logos sombres comme les logos blancs
         Box(
@@ -750,7 +709,7 @@ fun LiveChannelCard(
                 .background(
                     Brush.radialGradient(
                         listOf(
-                            if (isFav) Color(0x2EFF4D79) else Color(0x288B74FF),
+                            Color(0x14FFFFFF),
                             Color.Transparent
                         ),
                         radius = 120f
@@ -802,7 +761,7 @@ fun LiveChannelCard(
                     Text(
                         text = channelNum.toString(),
                         color = Color.White,
-                        fontSize = 9.sp,
+                        fontSize = 10.5.sp,
                         fontWeight = FontWeight.Bold
                     )
                 }
@@ -829,7 +788,7 @@ fun LiveChannelCard(
                 Text(
                     text = quality,
                     color = if (isUhd) SX.Gold else Color(0xFFD6DCFA),
-                    fontSize = 8.5.sp,
+                    fontSize = 10.5.sp,
                     fontWeight = FontWeight.Bold
                 )
             }
@@ -874,12 +833,12 @@ fun LiveChannelCard(
                         maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f)
                     )
                     Spacer(Modifier.width(5.dp))
-                    Text(text = df.format(java.util.Date(cur.startMs)) + "–" + df.format(java.util.Date(cur.endMs)), color = SX.Muted, fontSize = 8.5.sp, maxLines = 1)
+                    Text(text = df.format(java.util.Date(cur.startMs)) + "–" + df.format(java.util.Date(cur.endMs)), color = SX.Muted, fontSize = 10.5.sp, maxLines = 1)
                 }
                 Spacer(Modifier.height(3.dp))
                 val frac = ((System.currentTimeMillis() - cur.startMs).toFloat() / (cur.endMs - cur.startMs).coerceAtLeast(1)).coerceIn(0f, 1f)
                 Box(Modifier.fillMaxWidth().height(2.5.dp).clip(CircleShape).background(Color(0x33FFFFFF))) {
-                    Box(Modifier.fillMaxWidth(frac).height(2.5.dp).background(Brush.horizontalGradient(listOf(SX.Violet, SX.Turquoise))))
+                    Box(Modifier.fillMaxWidth(frac).height(2.5.dp).background(Color(0xE6FFFFFF)))
                 }
             }
         }

@@ -164,17 +164,10 @@ fun TubeScreen() {
         }
     ) {
         Column(Modifier.fillMaxSize().padding(top = 22.dp)) {
-            Row(Modifier.padding(horizontal = 28.dp), verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    Modifier.size(36.dp).clip(RoundedCornerShape(11.dp)).background(Brush.linearGradient(listOf(theme.c1, theme.c2))),
-                    contentAlignment = Alignment.Center
-                ) { Icon(Icons.Outlined.SmartDisplay, null, tint = Color.White, modifier = Modifier.size(21.dp)) }
-                Spacer(Modifier.width(12.dp))
-                Column(Modifier.weight(1f)) {
-                    Text(stringResource(R.string.nav_tube), color = Color.White, fontSize = 23.sp, fontWeight = FontWeight.Bold)
-                    Text(stringResource(R.string.tube_subtitle), color = SX.Muted, fontSize = 11.5.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                }
-            }
+            PageHeader(
+                NavIconType.TUBE, stringResource(R.string.nav_tube), stringResource(R.string.tube_subtitle),
+                modifier = Modifier.padding(horizontal = 28.dp)
+            )
             Spacer(Modifier.height(12.dp))
             val plain = !searching && !showPicker
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(horizontal = 28.dp, vertical = 4.dp)) {
@@ -241,7 +234,7 @@ private fun Offline(onRetry: () -> Unit) {
 private fun Shelves(shelves: List<TShelf>, liked: Set<String>, onPlay: (TVideo) -> Unit, onLike: (TVideo) -> Unit) {
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 40.dp)) {
         items(shelves, key = { it.key }) { s ->
-            Text(s.title, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(start = 28.dp, top = 12.dp, bottom = 6.dp))
+            Text(s.title, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(start = 28.dp, top = 12.dp, bottom = 6.dp))
             LazyRow(Modifier.fillMaxWidth(), contentPadding = PaddingValues(horizontal = SX.Gutter, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                 items(s.videos, key = { it.id }) { v ->
                     TubeCard(v, v.id in liked, Modifier.width(236.dp), onClick = { onPlay(v) }, onLike = { onLike(v) })
@@ -273,7 +266,7 @@ private fun VideoGrid(
         ) {
             items(list, key = { it.id }) { v ->
                 TubeCard(
-                    v, v.id in liked, Modifier, onClick = { onPlay(v, if (queueAfter) list.dropWhile { it.id != v.id }.drop(1) else emptyList()) }, onLike = { onLike(v) },
+                    v, v.id in liked, Modifier, onClick = { onPlay(v, if (queueAfter) list.filter { it.id != v.id }.shuffled() else emptyList()) }, onLike = { onLike(v) },
                     focusMod = if (firstReq != null && v.id == list.first().id) Modifier.focusRequester(firstReq) else Modifier
                 )
             }
@@ -294,7 +287,7 @@ private fun TubeCard(v: TVideo, liked: Boolean, modifier: Modifier, onClick: () 
                 .clip(shape).background(SX.Placeholder)
         ) {
             NetImage(v.thumb, 236.dp, 133.dp, modifier = Modifier.fillMaxSize())
-            if (v.live) Badge(stringResource(R.string.player_live).uppercase(), Modifier.align(Alignment.BottomEnd), Brush.horizontalGradient(listOf(Color(0xFF5E38E8), Color(0xFF7B52FF))))
+            if (v.live) Badge(stringResource(R.string.player_live).uppercase(), Modifier.align(Alignment.BottomEnd), navThemeOf(NavIconType.TUBE).let { th -> Brush.horizontalGradient(listOf(androidx.compose.ui.graphics.lerp(th.c1, Color.Black, 0.45f), androidx.compose.ui.graphics.lerp(th.c2, Color.Black, 0.45f))) })
             else if (v.durationSec > 0) Badge(Tube.formatDuration(v.durationSec), Modifier.align(Alignment.BottomEnd), null)
             if (liked) {
                 Box(
@@ -313,7 +306,7 @@ private fun TubeCard(v: TVideo, liked: Boolean, modifier: Modifier, onClick: () 
 @Composable
 private fun Badge(text: String, modifier: Modifier, brush: Brush?) {
     Text(
-        text, color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold,
+        text, color = Color.White, fontSize = 10.5.sp, fontWeight = FontWeight.Bold,
         modifier = modifier.padding(6.dp).clip(RoundedCornerShape(5.dp))
             .then(if (brush != null) Modifier.background(brush) else Modifier.background(Color(0xCC0B0D19)))
             .padding(horizontal = 6.dp, vertical = 2.dp)
@@ -335,6 +328,6 @@ private fun InterestPicker(onDone: (Set<String>) -> Unit) {
             }
         }
         Spacer(Modifier.height(18.dp))
-        Row { SelectChip(stringResource(R.string.tube_continue), true) { onDone(chosen) } }
+        Row { PillButton(stringResource(R.string.tube_continue), true) { onDone(chosen) } }
     }
 }

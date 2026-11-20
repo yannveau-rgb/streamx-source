@@ -137,7 +137,7 @@ class PlayerControls(
         durView.visibility = vis
         listOf<View>(prevBtn, backBtn, fwdBtn, speedBtn).forEach { it.visibility = vis }
         posView.text = if (l) ctx.getString(R.string.player_live) else ""
-        posView.setTextColor(if (l) 0xFFFF4D4D.toInt() else 0xFFE8E8E8.toInt())
+        posView.setTextColor(if (l) 0xFF3DE0C5.toInt() else 0xFFE8E8E8.toInt())
     }
 
     private val d = ctx.resources.displayMetrics.density
@@ -209,7 +209,7 @@ class PlayerControls(
         }
         listOf(posView, durView).forEach { it.setTextColor(0xFFE8E8E8.toInt()); it.textSize = 14f; it.typeface = Typeface.DEFAULT_BOLD }
         posView.text = if (live) ctx.getString(R.string.player_live) else ""
-        if (live) posView.setTextColor(0xFFFF4D4D.toInt())
+        if (live) posView.setTextColor(0xFF3DE0C5.toInt())
         timeRow.addView(posView, LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.START))
         timeRow.addView(durView, LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.END))
         bottom.addView(timeRow, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
@@ -352,8 +352,28 @@ class PlayerControls(
         menuOwner?.requestFocus()
     }
 
+    /** Coche tracée (#3DE0C5) ; transparente quand l'entrée n'est pas sélectionnée, pour garder l'alignement. */
+    private fun checkDrawable(on: Boolean): android.graphics.drawable.Drawable {
+        val sz = dp(22)
+        val bmp = android.graphics.Bitmap.createBitmap(sz, sz, android.graphics.Bitmap.Config.ARGB_8888)
+        if (on) {
+            val c = android.graphics.Canvas(bmp)
+            val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+                color = 0xFF3DE0C5.toInt(); style = android.graphics.Paint.Style.STROKE
+                strokeWidth = sz * 0.14f; strokeCap = android.graphics.Paint.Cap.ROUND; strokeJoin = android.graphics.Paint.Join.ROUND
+            }
+            val path = android.graphics.Path().apply {
+                moveTo(sz * 0.18f, sz * 0.54f); lineTo(sz * 0.40f, sz * 0.76f); lineTo(sz * 0.82f, sz * 0.26f)
+            }
+            c.drawPath(path, paint)
+        }
+        return android.graphics.drawable.BitmapDrawable(ctx.resources, bmp)
+    }
+
     private fun item(label: String, selected: Boolean, onPick: () -> Unit) = TextView(ctx).apply {
-        text = (if (selected) "●  " else "     ") + label
+        text = label
+        compoundDrawablePadding = dp(12)
+        setCompoundDrawablesRelativeWithIntrinsicBounds(checkDrawable(selected), null, null, null)
         setTextColor(Color.WHITE)
         textSize = 20f
         isFocusable = true

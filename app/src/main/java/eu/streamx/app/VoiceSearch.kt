@@ -200,8 +200,8 @@ private fun VoiceOverlay(phase: VoicePhase, partial: String, level: Float, error
                     maxLines = 3, overflow = TextOverflow.Ellipsis, modifier = Modifier.fillMaxWidth().height(70.dp)
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    if (phase == VoicePhase.ERROR) SelectChip(stringResource(R.string.retry), true, Modifier.focusRequester(focus)) { onRetry() }
-                    SelectChip(stringResource(R.string.voice_cancel), phase != VoicePhase.ERROR, if (phase == VoicePhase.ERROR) Modifier else Modifier.focusRequester(focus)) { onCancel() }
+                    if (phase == VoicePhase.ERROR) PillButton(stringResource(R.string.retry), true, Modifier.focusRequester(focus)) { onRetry() }
+                    PillButton(stringResource(R.string.voice_cancel), false, if (phase == VoicePhase.ERROR) Modifier else Modifier.focusRequester(focus)) { onCancel() }
                 }
             }
         }

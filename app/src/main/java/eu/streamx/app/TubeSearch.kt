@@ -31,6 +31,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -130,12 +131,9 @@ fun TubeSearchBar(query: String, onQuery: (String) -> Unit, onSubmit: (String) -
             Modifier
                 .fillMaxWidth()
                 .height(42.dp)
-                .glass(pill, if (barFocused) 1.5f else 1.1f)
-                .border(
-                    if (barFocused) 1.6.dp else 0.6.dp,
-                    if (barFocused) Brush.horizontalGradient(listOf(Color(0xFF2DD4BF), Color(0xFF7B52FF))) else SolidColor(Color(0x40FFFFFF)),
-                    pill
-                )
+                .glass(pill, 1.1f)
+                .background(if (barFocused) Color(0x29FFFFFF) else Color.Transparent, pill)
+                .border(if (barFocused) 2.dp else 0.6.dp, if (barFocused) Color(0xF2FFFFFF) else Color(0x40FFFFFF), pill)
                 .padding(horizontal = 14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -150,7 +148,7 @@ fun TubeSearchBar(query: String, onQuery: (String) -> Unit, onSubmit: (String) -
                     onValueChange = { tf = it; if (it.text != query) onQuery(it.text) },
                     singleLine = true, readOnly = !editing,
                     textStyle = TextStyle(color = Color.White, fontSize = 13.sp),
-                    cursorBrush = SolidColor(Color(0xFF2DD4BF)),
+                    cursorBrush = SolidColor(LocalNavTheme.current.ring),
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                     keyboardActions = KeyboardActions(onSearch = { submit(tf.text) }),
                     modifier = Modifier
@@ -226,17 +224,21 @@ fun TubeSearchBar(query: String, onQuery: (String) -> Unit, onSubmit: (String) -
             ) {
                 suggestions.forEach { (s, recent) ->
                     val row = RoundedCornerShape(10.dp)
+                    var rowFocused by remember { mutableStateOf(false) }
+                    val rp = rememberFocusProgress(rowFocused).value
                     Row(
                         Modifier
                             .fillMaxWidth()
-                            .tvFocus(row, cornerRadius = 10.dp, scale = 1.02f) { submit(s) }
+                            .onFocusChanged { rowFocused = it.isFocused }
+                            .tvFocus(row, scale = 1.0f, decorate = false) { submit(s) }
                             .clip(row)
+                            .background(lerp(Color.Transparent, SXFocus.Fill, rp))
                             .padding(horizontal = 10.dp, vertical = 9.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(if (recent) Icons.Outlined.History else Icons.Outlined.Search, null, tint = SX.Muted, modifier = Modifier.size(16.dp))
+                        Icon(if (recent) Icons.Outlined.History else Icons.Outlined.Search, null, tint = lerp(SX.Muted, SXFocus.On, rp), modifier = Modifier.size(16.dp))
                         Spacer(Modifier.width(10.dp))
-                        Text(s, color = Color.White, fontSize = 12.5.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(s, color = lerp(Color.White, SXFocus.On, rp), fontSize = 12.5.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 }
             }

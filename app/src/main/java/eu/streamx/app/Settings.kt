@@ -34,6 +34,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -167,7 +169,7 @@ private fun supportText(c: Context, account: Account, info: AccountInfo?): Strin
 @Composable
 private fun SettingSection(label: String) {
     Text(
-        label.uppercase(), color = SX.Overline, fontSize = 10.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.3.sp,
+        label.uppercase(), color = SX.Overline, fontSize = 10.5.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.3.sp,
         modifier = Modifier.padding(start = 6.dp, top = 12.dp, bottom = 5.dp)
     )
 }
@@ -181,11 +183,16 @@ private fun SettingRow(
     badgeBg: Color = badgeColor.copy(alpha = 0.15f),
     content: @Composable RowScope.() -> Unit
 ) {
-    val shape = RoundedCornerShape(13.dp)
+    val shape = RoundedCornerShape(SX.RTile)
+    val th = LocalNavTheme.current
+    var within by remember { mutableStateOf(false) }
     Row(
         Modifier
             .fillMaxWidth()
-            .glass(shape, 0.8f)
+            .onFocusChanged { within = it.hasFocus }
+            .clip(shape)
+            .background(if (within) Color(0x1FFFFFFF) else Color(0x0FFFFFFF))
+            .drawBehind { if (within) drawRect(th.c1, size = androidx.compose.ui.geometry.Size(3.dp.toPx(), size.height)) }
             .padding(horizontal = 16.dp, vertical = 9.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -213,7 +220,7 @@ private fun SettingRow(
                         Text(
                             text = badge,
                             color = badgeColor,
-                            fontSize = 9.sp,
+                            fontSize = 10.5.sp,
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -224,7 +231,7 @@ private fun SettingRow(
                 Text(
                     text = subtitle,
                     color = SX.Muted,
-                    fontSize = 10.sp,
+                    fontSize = 10.5.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -247,31 +254,25 @@ private fun SettingUpdateRow() {
     var progress by remember { mutableIntStateOf(-1) }
     var failed by remember { mutableStateOf(false) }
     var needsPermission by remember { mutableStateOf(false) }
-    val shape = RoundedCornerShape(13.dp)
+    val shape = RoundedCornerShape(SX.RTile)
+    val th = LocalNavTheme.current
+    var within by remember { mutableStateOf(false) }
 
     Row(
         Modifier
             .fillMaxWidth()
+            .onFocusChanged { within = it.hasFocus }
+            .clip(shape)
             .then(
                 if (update != null) {
                     Modifier
-                        .clip(shape)
-                        .background(
-                            Brush.horizontalGradient(
-                                listOf(Color(0x38FF2E63), Color(0x247B52FF), Color(0x1810B981))
-                            )
-                        )
-                        .border(
-                            1.1.dp,
-                            Brush.horizontalGradient(
-                                listOf(Color(0xAAFF4D79), Color(0x88B983FF), Color(0x663DE0C5))
-                            ),
-                            shape
-                        )
+                        .background(th.c1.copy(alpha = 0.14f))
+                        .border(1.dp, th.ring.copy(alpha = 0.45f), shape)
                 } else {
-                    Modifier.glass(shape, 0.8f)
+                    Modifier.background(if (within) Color(0x1FFFFFFF) else Color(0x0FFFFFFF))
                 }
             )
+            .drawBehind { if (within) drawRect(th.c1, size = androidx.compose.ui.geometry.Size(3.dp.toPx(), size.height)) }
             .padding(horizontal = 16.dp, vertical = 9.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -298,7 +299,7 @@ private fun SettingUpdateRow() {
                         Text(
                             text = "v" + update.versionName,
                             color = Color.White,
-                            fontSize = 9.sp,
+                            fontSize = 10.5.sp,
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -313,7 +314,7 @@ private fun SettingUpdateRow() {
                         Text(
                             text = "v" + BuildConfig.VERSION_NAME,
                             color = SX.Text2,
-                            fontSize = 9.sp,
+                            fontSize = 10.5.sp,
                             fontWeight = FontWeight.SemiBold
                         )
                     }
@@ -326,7 +327,7 @@ private fun SettingUpdateRow() {
                 Text(
                     text = if (notes.isNotBlank()) notes else stringResource(R.string.update_available, update.versionName),
                     color = SX.Text2,
-                    fontSize = 10.sp,
+                    fontSize = 10.5.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -340,7 +341,7 @@ private fun SettingUpdateRow() {
                     Text(
                         text = status,
                         color = if (failed) SX.Danger else SX.VioletLight,
-                        fontSize = 9.5.sp,
+                        fontSize = 10.5.sp,
                         fontWeight = FontWeight.Medium
                     )
                 }
@@ -368,13 +369,13 @@ private fun SettingUpdateRow() {
                         BuildConfig.VERSION_NAME
                     ),
                     color = SX.Muted,
-                    fontSize = 10.sp
+                    fontSize = 10.5.sp
                 )
             }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(7.dp), verticalAlignment = Alignment.CenterVertically) {
             if (update != null) {
-                SelectChip(stringResource(R.string.update_install), true) {
+                PillButton(stringResource(R.string.update_install), true) {
                     if (progress < 0) {
                         failed = false
                         needsPermission = false
@@ -450,43 +451,27 @@ fun AccountScreen(
                 .verticalScroll(rememberScrollState())
         ) {
             // En-tête compact Réglages
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    Modifier
-                        .size(32.dp)
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(Brush.linearGradient(listOf(theme.c1, theme.c2))),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Settings,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-                Spacer(Modifier.width(10.dp))
-                Text(stringResource(R.string.settings), color = Color.White, fontSize = 21.sp, fontWeight = FontWeight.Bold)
-                if (pendingUpdate != null) {
-                    Spacer(Modifier.width(10.dp))
+            PageHeader(
+                NavIconType.SETTINGS, stringResource(R.string.settings),
+                trailing = if (pendingUpdate == null) null else ({
                     Row(
                         Modifier
                             .clip(RoundedCornerShape(50))
-                            .background(Brush.horizontalGradient(listOf(Color(0xFF2DD4BF), Color(0xFF7B52FF))))
+                            .background(Color(0xFFF59E0B))
                             .padding(horizontal = 9.dp, vertical = 2.5.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Box(Modifier.size(5.5.dp).clip(CircleShape).background(Color.White))
+                        Box(Modifier.size(5.5.dp).clip(CircleShape).background(SXFocus.On))
                         Spacer(Modifier.width(5.dp))
                         Text(
                             text = stringResource(R.string.update_available, pendingUpdate.versionName),
-                            color = Color.White,
-                            fontSize = 9.5.sp,
+                            color = SXFocus.On,
+                            fontSize = 11.sp,
                             fontWeight = FontWeight.Bold
                         )
                     }
-                }
-            }
+                })
+            )
             Spacer(Modifier.height(10.dp))
 
             // Groupe : Compte
