@@ -202,6 +202,8 @@ class TPlayable(
     val hlsUrl: String?,
     val quality: String,
     val related: List<TVideo>,
+    /** Qualités disponibles (hauteur, lien image seule), de la meilleure à la plus modeste : sert à baisser la qualité quand ça rame. */
+    val ladder: List<Pair<Int, String>> = emptyList(),
 )
 
 object Tube {
@@ -335,12 +337,13 @@ object Tube {
             .sortedWith(compareByDescending<org.schabi.newpipe.extractor.stream.AudioStream> { it.audioTrackType == null || it.audioTrackType == AudioTrackType.ORIGINAL }
                 .thenByDescending { it.averageBitrate })
         val muxed = info.videoStreams.filter { it.isUrl && it.deliveryMethod == DeliveryMethod.PROGRESSIVE_HTTP }.maxByOrNull { it.height }
+        val ladder = vo.groupBy { it.height }.map { (h, l) -> h to l.first().content }.sortedByDescending { it.first }
         val bestV = vo.firstOrNull()
         val bestA = au.firstOrNull()
         android.util.Log.i(TAG, "resolve: videoOnly=${vo.size} audio=${au.size} muxed=${muxed?.height} hls=${hls != null}")
         when {
             bestV != null && bestA != null ->
-                TPlayable(vid, bestV.content, bestA.content, muxed?.content, hls, "${bestV.height}p", related)
+                TPlayable(vid, bestV.content, bestA.content, muxed?.content, hls, "${bestV.height}p", related, ladder)
             muxed != null -> TPlayable(vid, null, null, muxed.content, hls, "${muxed.height}p", related)
             hls != null -> TPlayable(vid, null, null, null, hls, "HLS", related)
             else -> error("Aucun flux lisible")

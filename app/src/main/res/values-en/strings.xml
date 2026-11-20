@@ -267,4 +267,5 @@
     <string name="tube_offline">Can’t reach YouTube. Check the connection, then try again.</string>
     <string name="tube_none">No results</string>
     <string name="tube_clear_history">Clear history</string>
+    <string name="tube_quality">Quality %1$s</string>
 </resources>

@@ -66,6 +66,11 @@ class TubePlayerActivity : ComponentActivity() {
     private var refreshes = 0     // nouvelles résolutions (liens refusés ou expirés) pour la vidéo en cours
     private var lastRefreshAt = 0L
     private var startAt = 0L      // position de reprise (ms) pour le prochain démarrage de la source
+    private var level = 0         // qualité en cours dans TPlayable.ladder (0 = la meilleure) : baisse toute seule quand ça rame
+    private var everReady = false
+    private var stallMs = 0L      // temps passé à attendre des données depuis la dernière lecture fluide
+    private var okMs = 0L
+    private var graceUntil = 0L
     private var loadJob: Job? = null
     private val ui = Handler(Looper.getMainLooper())
     private var errorDialog: android.app.AlertDialog? = null
@@ -79,6 +84,7 @@ class TubePlayerActivity : ComponentActivity() {
     private val ticker = object : Runnable {
         override fun run() {
             updateNextHint()
+            watchStalls()
             if (controls.visible) controls.refresh()
             ui.postDelayed(this, 500)
         }
@@ -144,7 +150,7 @@ class TubePlayerActivity : ComponentActivity() {
         exo.addListener(object : Player.Listener {
             override fun onPlaybackStateChanged(state: Int) {
                 if (state == Player.STATE_READY) {
-                    status.visibility = View.GONE; netRetries = 0
+                    status.visibility = View.GONE; netRetries = 0; everReady = true
                     // Plus d'une minute après la dernière relance : un nouveau lien expiré pourra être renouvelé.
                     if (refreshes > 0 && android.os.SystemClock.elapsedRealtime() - lastRefreshAt > 60_000) refreshes = 0
                 }
@@ -174,6 +180,7 @@ class TubePlayerActivity : ComponentActivity() {
         played += v.id
         step = 0
         netRetries = 0
+        level = 0; everReady = false; stallMs = 0; okMs = 0; graceUntil = 0
         if (!fresh) refreshes = 0
         startAt = resumeMs
         ui.removeCallbacks(netRetry)
@@ -237,12 +244,34 @@ class TubePlayerActivity : ComponentActivity() {
     /** Sources à essayer dans l'ordre : image et son séparés (meilleure qualité), flux unique, HLS. Direct : HLS seulement. */
     private fun candidates(p: TPlayable): List<() -> MediaSource> = buildList {
         if (p.video.live && p.hlsUrl != null) { add { hls(p.hlsUrl) }; return@buildList }
-        if (p.videoUrl != null && p.audioUrl != null) add { MergingMediaSource(progressive(p.videoUrl), progressive(p.audioUrl)) }
+        if (p.videoUrl != null && p.audioUrl != null) add {
+            val v = p.ladder.getOrNull(level)?.second ?: p.videoUrl
+            MergingMediaSource(progressive(v), progressive(p.audioUrl))
+        }
         if (p.muxedUrl != null) add { progressive(p.muxedUrl) }
         if (p.hlsUrl != null) add { hls(p.hlsUrl) }
     }
 
-    private fun start(p: TPlayable) {
+    /** Si la lecture attend des données plus de 6 s en tout, on passe à la qualité du dessous, à la même position. */
+    private fun watchStalls() {
+        val p = curPlayable ?: return
+        val q = player ?: return
+        if (p.video.live || step != 0 || p.ladder.size < 2 || !everReady || !q.playWhenReady) return
+        if (android.os.SystemClock.elapsedRealtime() < graceUntil) return
+        if (q.playbackState == Player.STATE_BUFFERING) { stallMs += 500; okMs = 0 }
+        else if (q.playbackState == Player.STATE_READY) { okMs += 500; if (okMs >= 30_000) stallMs = 0 }
+        if (stallMs >= 6_000 && level < p.ladder.size - 1) {
+            level++
+            stallMs = 0; okMs = 0
+            graceUntil = android.os.SystemClock.elapsedRealtime() + 15_000
+            startAt = q.currentPosition
+            flashMessage(getString(R.string.tube_quality, "${p.ladder[level].first}p"))
+            android.util.Log.i("StreamXTube", "qualité abaissée : ${p.ladder[level].first}p (niveau $level sur ${p.ladder.size - 1})")
+            start(p, quiet = true)
+        }
+    }
+
+    private fun start(p: TPlayable, quiet: Boolean = false) {
         val exo = player ?: return
         controls.setLive(p.video.live)
         if (p.video.live) exo.setPlaybackSpeed(1f)
@@ -254,7 +283,7 @@ class TubePlayerActivity : ComponentActivity() {
         exo.prepare()
         // Si l'appli est passée en arrière-plan pendant le chargement, on ne démarre pas le son dans le vide.
         exo.playWhenReady = lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
-        showControls()
+        if (!quiet) showControls()
     }
 
     /** Erreur de lecture : on réessaie sur place si c'est une coupure réseau, sinon on passe à la source suivante ; la position est gardée. */
@@ -355,6 +384,8 @@ class TubePlayerActivity : ComponentActivity() {
         val p = player
         val down = e.action == KeyEvent.ACTION_DOWN
         val code = e.keyCode
+        // Version de test seulement : la touche Q simule une lecture qui rame (pour vérifier la baisse de qualité).
+        if (BuildConfig.DEBUG && down && code == KeyEvent.KEYCODE_Q) { stallMs = 6_000; graceUntil = 0; flashMessage("test : lecture qui rame"); return true }
         if (down && (code == KeyEvent.KEYCODE_MENU || code == KeyEvent.KEYCODE_BOOKMARK || code == KeyEvent.KEYCODE_STAR) && e.repeatCount == 0) {
             toggleLike(); return true
         }

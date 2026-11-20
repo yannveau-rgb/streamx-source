@@ -267,4 +267,5 @@
     <string name="tube_offline">Impossible de joindre YouTube. Vérifie la connexion, puis réessaie.</string>
     <string name="tube_none">Aucun résultat</string>
     <string name="tube_clear_history">Effacer l’historique</string>
+    <string name="tube_quality">Qualité %1$s</string>
 </resources>
