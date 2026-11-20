@@ -26,7 +26,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.ThumbUp
 import androidx.compose.material.icons.outlined.SmartDisplay
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -180,7 +180,7 @@ fun TubeScreen() {
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(horizontal = 28.dp, vertical = 4.dp)) {
                 item("home") { SelectChip(stringResource(R.string.home), tab == 0 && plain, Modifier.focusRequester(chipReq[0])) { goTab(0) } }
                 item("trend") { SelectChip(stringResource(R.string.tube_trending), tab == 1 && plain, Modifier.focusRequester(chipReq[1])) { goTab(1) } }
-                item("hearts") { SelectChip(stringResource(R.string.tube_hearts), tab == 2 && plain, Modifier.focusRequester(chipReq[2])) { goTab(2) } }
+                item("hearts") { SelectChip(stringResource(R.string.tube_hearts), tab == 2 && plain, Modifier.focusRequester(chipReq[2]), Icons.Filled.ThumbUp) { goTab(2) } }
                 item("hist") { SelectChip(stringResource(R.string.tube_history), tab == 3 && plain, Modifier.focusRequester(chipReq[3])) { goTab(3) } }
                 item("topics") { SelectChip(stringResource(R.string.tube_topics), showPicker, Modifier.focusRequester(chipReq[4])) { picking = true; query = "" } }
             }
@@ -300,7 +300,7 @@ private fun TubeCard(v: TVideo, liked: Boolean, modifier: Modifier, onClick: () 
                 Box(
                     Modifier.align(Alignment.TopEnd).padding(6.dp).size(24.dp).clip(CircleShape).background(Color(0xCC14112B)),
                     contentAlignment = Alignment.Center
-                ) { Icon(Icons.Filled.Favorite, null, tint = Color.White, modifier = Modifier.size(14.dp)) }
+                ) { Icon(Icons.Filled.ThumbUp, null, tint = Color.White, modifier = Modifier.size(14.dp)) }
             }
         }
         Spacer(Modifier.height(6.dp))

@@ -44,7 +44,7 @@ fun tubePlayIntent(c: Context, v: TVideo, queue: List<TVideo> = emptyList()): In
         .putStringArrayListExtra("q", ArrayList(queue.take(30).map { it.toJson().toString() }))
 
 /**
- * Lecteur de l'onglet Tube : mêmes commandes que le lecteur de StreamX, plus le cœur (touche Menu ou bouton en haut à droite)
+ * Lecteur de l'onglet Tube : mêmes commandes que le lecteur de StreamX, plus le pouce « J'aime » (dans les commandes, ou touche Menu)
  * et la lecture automatique : à la fin d'une vidéo, la suivante démarre toute seule parmi les suggestions de YouTube.
  */
 class TubePlayerActivity : ComponentActivity() {
@@ -56,7 +56,6 @@ class TubePlayerActivity : ComponentActivity() {
     private lateinit var nextHint: TextView
     private lateinit var flash: TextView
     private lateinit var status: TextView
-    private lateinit var heart: TextView
     private lateinit var cur: TVideo
     private var liked = false
     private val queue = ArrayList<TVideo>()
@@ -74,7 +73,7 @@ class TubePlayerActivity : ComponentActivity() {
     private val hideControls = object : Runnable {
         override fun run() {
             if (controls.menuOpen) { ui.postDelayed(this, 2000); return }
-            if (player?.isPlaying == true) { controls.hide(); heart.visibility = View.GONE } else ui.postDelayed(this, 2000)
+            if (player?.isPlaying == true) { controls.hide() } else ui.postDelayed(this, 2000)
         }
     }
     private val ticker = object : Runnable {
@@ -90,8 +89,7 @@ class TubePlayerActivity : ComponentActivity() {
 
     private fun showControls() {
         controls.show(cur.title)
-        heart.visibility = View.VISIBLE
-        refreshHeart()
+        controls.setLiked(liked)
         ui.removeCallbacks(hideControls)
         ui.postDelayed(hideControls, 5000)
     }
@@ -124,24 +122,12 @@ class TubePlayerActivity : ComponentActivity() {
         nextHint = bubble(Gravity.BOTTOM or Gravity.END, 140, 0)
         flash = bubble(Gravity.TOP or Gravity.CENTER_HORIZONTAL, 0, 80).apply { (layoutParams as FrameLayout.LayoutParams).setMargins(0, 80, 0, 0) }
         status = bubble(Gravity.CENTER, 0, 0).apply { visibility = View.VISIBLE; text = getString(R.string.tube_loading) }
-        heart = TextView(this).apply {
-            visibility = View.GONE
-            textSize = 15f
-            gravity = Gravity.CENTER
-            setPadding(44, 18, 44, 18)
-            isFocusable = true
-            isClickable = true
-            setOnClickListener { toggleLike() }
-            layoutParams = FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.TOP or Gravity.END)
-                .apply { setMargins(0, 36, 48, 0) }
-            setOnFocusChangeListener { _, _ -> refreshHeart() }
-        }
         controls = PlayerControls(this, { player }, false, { queue.any { it.id !in played } }, { playNext() }, { flashMessage(it) })
+        controls.enableLike { toggleLike() }
         val root = FrameLayout(this).apply {
             setBackgroundColor(Color.BLACK)
             addView(view, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
             addView(controls, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
-            addView(heart)
             addView(nextHint)
             addView(flash)
             addView(status)
@@ -194,6 +180,7 @@ class TubePlayerActivity : ComponentActivity() {
         controls.closeMenu()
         curPlayable = null
         liked = false
+        controls.setLiked(false)
         controls.setTitle(v.title)
         status.text = getString(R.string.tube_loading)
         status.visibility = View.VISIBLE
@@ -211,6 +198,7 @@ class TubePlayerActivity : ComponentActivity() {
                     Tube.invalidate()
                     TubeStore.isLiked(this@TubePlayerActivity, p.video.id)
                 }
+                controls.setLiked(liked)
                 val fresh = p.related.filter { it.id !in played && queue.none { q -> q.id == it.id } }
                 // On garde la file courte et variée : les premières suggestions de YouTube suffisent.
                 if (queue.size < 6) queue.addAll(fresh.take(12))
@@ -351,18 +339,8 @@ class TubePlayerActivity : ComponentActivity() {
         val v = cur
         lifecycleScope.launch {
             liked = withContext(Dispatchers.IO) { TubeStore.toggleLike(this@TubePlayerActivity, v).also { Tube.invalidate() } }
-            refreshHeart()
+            controls.setLiked(liked)
             flashMessage(getString(if (liked) R.string.tube_liked else R.string.tube_unliked))
-        }
-    }
-
-    private fun refreshHeart() {
-        val focused = heart.hasFocus()
-        heart.text = if (liked) "♥  ${getString(R.string.tube_in_hearts)}" else "♡  ${getString(R.string.tube_add_heart)}"
-        heart.setTextColor(if (focused) 0xFF14112B.toInt() else Color.WHITE)
-        heart.background = GradientDrawable().apply {
-            cornerRadius = 80f
-            setColor(if (focused) Color.WHITE else if (liked) 0xCC7B52FF.toInt() else 0x99141733.toInt())
         }
     }
 
@@ -390,7 +368,7 @@ class TubePlayerActivity : ComponentActivity() {
         }
         if (controls.visible) {
             if (down) {
-                if (code == KeyEvent.KEYCODE_BACK || code == KeyEvent.KEYCODE_ESCAPE) { controls.hide(); heart.visibility = View.GONE; ui.removeCallbacks(hideControls); return true }
+                if (code == KeyEvent.KEYCODE_BACK || code == KeyEvent.KEYCODE_ESCAPE) { controls.hide(); ui.removeCallbacks(hideControls); return true }
                 ui.removeCallbacks(hideControls); ui.postDelayed(hideControls, 5000)
             }
             if (down && p != null) when (code) {

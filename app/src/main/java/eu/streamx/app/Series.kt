@@ -102,8 +102,26 @@ suspend fun XtreamApi.episodes(a: Account, seriesId: String): Map<Int, List<Epis
 }
 
 @Composable
-fun SelectChip(label: String, selected: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
+fun SelectChip(label: String, selected: Boolean, modifier: Modifier = Modifier, icon: androidx.compose.ui.graphics.vector.ImageVector? = null, onClick: () -> Unit) {
     val pill = RoundedCornerShape(50)
+    if (icon != null) {
+        // Pastille avec une petite icône devant le texte (ex. le pouce de l'onglet « J'aime » de Tube).
+        Row(
+            modifier = modifier
+                .tvFocus(pill, onClick = onClick)
+                .then(
+                    if (selected) Modifier.clip(pill).background(Brush.horizontalGradient(listOf(SX.Violet, SX.VioletLight)))
+                    else Modifier.glass(pill, 1.2f)
+                )
+                .padding(start = 13.dp, end = 16.dp, top = 8.dp, bottom = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(icon, null, tint = Color.White, modifier = Modifier.size(15.dp))
+            Spacer(Modifier.width(7.dp))
+            Text(label, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+        }
+        return
+    }
     Text(
         label, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1,
         modifier = modifier

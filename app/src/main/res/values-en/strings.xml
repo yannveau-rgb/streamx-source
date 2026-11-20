@@ -247,24 +247,22 @@
     <string name="tmdb_credit">This product uses the TMDB API but is not endorsed or certified by TMDB.</string>
 
     <string name="nav_tube">Tube</string>
-    <string name="tube_subtitle">No ads  ·  long-press OK = heart</string>
+    <string name="tube_subtitle">No ads  ·  long-press OK = like</string>
     <string name="tube_trending">Trending</string>
-    <string name="tube_hearts">My hearts</string>
+    <string name="tube_hearts">Liked</string>
     <string name="tube_history">History</string>
     <string name="tube_search_hint">Search a video, channel, artist…</string>
     <string name="tube_topics">My topics</string>
     <string name="tube_pick_title">What are you into?</string>
-    <string name="tube_pick_sub">Tick your topics: the home page fills up right away and gets sharper with your hearts.</string>
+    <string name="tube_pick_sub">Tick your topics: the home page fills up right away and gets sharper with your likes.</string>
     <string name="tube_continue">Continue</string>
     <string name="tube_loading">Loading…</string>
     <string name="tube_error">This video can’t be played right now.</string>
     <string name="tube_next_video">Next video</string>
     <string name="tube_up_next">Up next: %1$s  ·  OK</string>
-    <string name="tube_liked">♥ Added to your hearts</string>
-    <string name="tube_unliked">Removed from your hearts</string>
-    <string name="tube_in_hearts">In your hearts</string>
-    <string name="tube_add_heart">Add a heart</string>
-    <string name="tube_empty_hearts">No hearts yet. On a video, long-press OK (or the Menu key) to add one: the home page will adapt to your taste.</string>
+    <string name="tube_liked">Added to your likes</string>
+    <string name="tube_unliked">Removed from your likes</string>
+    <string name="tube_empty_hearts">No liked videos yet. On a video, use the player’s thumb (or long-press OK): the home page will adapt to your taste.</string>
     <string name="tube_empty_history">Nothing watched yet.</string>
     <string name="tube_offline">Can’t reach YouTube. Check the connection, then try again.</string>
     <string name="tube_none">No results</string>

@@ -247,24 +247,22 @@
     <string name="tmdb_credit">Ce produit utilise l\'API TMDB mais n\'est ni approuvé ni certifié par TMDB.</string>
 
     <string name="nav_tube">Tube</string>
-    <string name="tube_subtitle">Sans publicité  ·  appui long sur OK = cœur</string>
+    <string name="tube_subtitle">Sans publicité  ·  appui long sur OK = J’aime</string>
     <string name="tube_trending">Tendances</string>
-    <string name="tube_hearts">Mes cœurs</string>
+    <string name="tube_hearts">J’aime</string>
     <string name="tube_history">Historique</string>
     <string name="tube_search_hint">Rechercher une vidéo, une chaîne, un artiste…</string>
     <string name="tube_topics">Mes thèmes</string>
     <string name="tube_pick_title">Qu’est-ce qui t’intéresse ?</string>
-    <string name="tube_pick_sub">Coche tes thèmes : l’accueil se remplit tout de suite et s’affine avec tes cœurs.</string>
+    <string name="tube_pick_sub">Coche tes thèmes : l’accueil se remplit tout de suite et s’affine avec tes J’aime.</string>
     <string name="tube_continue">Continuer</string>
     <string name="tube_loading">Chargement…</string>
     <string name="tube_error">Impossible de lire cette vidéo pour le moment.</string>
     <string name="tube_next_video">Vidéo suivante</string>
     <string name="tube_up_next">À suivre : %1$s  ·  OK</string>
-    <string name="tube_liked">♥ Ajouté à tes cœurs</string>
-    <string name="tube_unliked">Retiré de tes cœurs</string>
-    <string name="tube_in_hearts">Dans tes cœurs</string>
-    <string name="tube_add_heart">Ajouter un cœur</string>
-    <string name="tube_empty_hearts">Aucun cœur pour l’instant. Sur une vidéo, fais un appui long sur OK (ou touche Menu) pour l’ajouter : l’accueil s’adaptera à tes goûts.</string>
+    <string name="tube_liked">Ajouté à tes J’aime</string>
+    <string name="tube_unliked">Retiré de tes J’aime</string>
+    <string name="tube_empty_hearts">Aucune vidéo aimée pour l’instant. Sur une vidéo, utilise le pouce du lecteur (ou un appui long sur OK) : l’accueil s’adaptera à tes goûts.</string>
     <string name="tube_empty_history">Rien de regardé pour l’instant.</string>
     <string name="tube_offline">Impossible de joindre YouTube. Vérifie la connexion, puis réessaie.</string>
     <string name="tube_none">Aucun résultat</string>

@@ -3,6 +3,7 @@ package eu.streamx.app
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.RectF
@@ -29,14 +30,19 @@ private const val DARK = 0xFF0B0D19.toInt()
 private const val PANEL = 0xF2181818.toInt()
 private const val PILL_BG = 0xB3303030.toInt()
 
+// Pouce « J'aime » (icônes Material, vides ou pleines).
+private const val THUMB_OUTLINE = "M9 21h9c.83 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73v-2c0-1.1-.9-2-2-2h-6.31l.95-4.57.03-.32c0-.41-.17-.79-.44-1.06L14.17 1 7.59 7.59C7.22 7.95 7 8.45 7 9v10c0 1.1.9 2 2 2zM9 9l4.34-4.34L12 10h9v2l-3 7H9V9zM1 9h4v12H1z"
+private const val THUMB_FILLED = "M1 21h4V9H1v12zm22-11c0-1.1-.9-2-2-2h-6.31l.95-4.57.03-.32c0-.41-.17-.79-.44-1.06L14.17 1 7.59 7.59C7.22 7.95 7 8.45 7 9v10c0 1.1.9 2 2 2h9c.83 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73v-2z"
+
 /**
  * Bouton rond du lecteur, dessiné à la main. Comme sur YouTube TV : au focus, il devient un rond blanc plein à l'icône sombre ;
  * sinon l'icône est blanche (sur un disque translucide pour les boutons de lecture).
  */
 private class Glyph(ctx: Context, val kind: Int, private val px: Int, private val disc: Boolean) : View(ctx) {
-    companion object { const val PLAY = 0; const val PAUSE = 1; const val PREV = 2; const val NEXT = 3; const val CC = 4; const val AUDIO = 5; const val SPEED = 6 }
+    companion object { const val PLAY = 0; const val PAUSE = 1; const val PREV = 2; const val NEXT = 3; const val CC = 4; const val AUDIO = 5; const val SPEED = 6; const val THUMB = 7 }
 
     var shown = kind
+    var on = false // pouce plein quand la vidéo est aimée
     private val fill = Paint(Paint.ANTI_ALIAS_FLAG)
     private val ink = Paint(Paint.ANTI_ALIAS_FLAG)
     private val line = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND; strokeJoin = Paint.Join.ROUND }
@@ -76,6 +82,16 @@ private class Glyph(ctx: Context, val kind: Int, private val px: Int, private va
                 c.drawArc(RectF(.40f * w, .36f * w, .64f * w, .64f * w), -50f, 100f, false, line)
                 c.drawArc(RectF(.34f * w, .27f * w, .78f * w, .73f * w), -50f, 100f, false, line)
             }
+            THUMB -> {
+                val path = androidx.core.graphics.PathParser.createPathFromPathData(if (on) THUMB_FILLED else THUMB_OUTLINE)
+                val sc = w * 0.54f / 24f
+                val m = Matrix()
+                m.setScale(sc, sc)
+                m.postTranslate((w - 24f * sc) / 2f, (w - 24f * sc) / 2f - w * 0.01f)
+                path.transform(m)
+                if (on && !isFocused) ink.color = 0xFF2DD4BF.toInt() // turquoise de l'appli quand c'est aimé
+                c.drawPath(path, ink)
+            }
             SPEED -> {
                 c.drawArc(RectF(.2f * w, .24f * w, .8f * w, .84f * w), 150f, 240f, false, line)
                 c.drawLine(.5f * w, .56f * w, .65f * w, .38f * w, line)
@@ -101,6 +117,17 @@ class PlayerControls(
 ) : FrameLayout(ctx) {
 
     private var live = isLive
+
+    /** Affiche le pouce « J'aime » dans la rangée de droite (onglet Tube) et lui donne son action. */
+    fun enableLike(onClick: () -> Unit) {
+        likeBtn.visibility = View.VISIBLE
+        likeBtn.setOnClickListener { onClick() }
+    }
+
+    fun setLiked(liked: Boolean) {
+        likeBtn.on = liked
+        likeBtn.invalidate()
+    }
 
     /** Bascule entre vidéo à la demande et direct (onglet Tube : un même lecteur enchaîne les deux). */
     fun setLive(l: Boolean) {
@@ -130,6 +157,7 @@ class PlayerControls(
     private val subsBtn = Glyph(ctx, Glyph.CC, dp(40), false)
     private val audioBtn = Glyph(ctx, Glyph.AUDIO, dp(40), false)
     private val speedBtn = Glyph(ctx, Glyph.SPEED, dp(40), false)
+    private val likeBtn = Glyph(ctx, Glyph.THUMB, dp(40), false)
     private val menu = LinearLayout(ctx)
     private val menuScroll = ScrollView(ctx)
     private var menuOwner: View? = null
@@ -220,7 +248,7 @@ class PlayerControls(
             clipChildren = false
             setPadding(dp(6), dp(6), dp(6), dp(6))
             background = GradientDrawable().apply { setColor(PILL_BG); cornerRadius = dp(40).toFloat() }
-            listOf<View>(subsBtn, audioBtn, speedBtn).forEach { addView(it, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { setMargins(dp(2), 0, dp(2), 0) }) }
+            listOf<View>(likeBtn, subsBtn, audioBtn, speedBtn).forEach { addView(it, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { setMargins(dp(2), 0, dp(2), 0) }) }
         }
         val row = FrameLayout(ctx).apply {
             clipChildren = false
@@ -242,6 +270,8 @@ class PlayerControls(
             addView(menu)
         }
         addView(menuScroll, LayoutParams(dp(380), ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.END or Gravity.CENTER_VERTICAL).apply { setMargins(0, 0, dp(48), 0) })
+
+        likeBtn.visibility = View.GONE // visible seulement si le lecteur propose « J'aime » (onglet Tube)
 
         // Actions.
         playBtn.setOnClickListener { togglePlay() }
