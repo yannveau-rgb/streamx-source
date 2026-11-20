@@ -291,7 +291,7 @@ fun ResumeCard(w: Watch, account: Account, onDetail: OpenDetail) {
                     QuickAction(
                         label = stringResource(if (isFav) R.string.action_remove_fav else R.string.action_add_fav),
                         icon = if (isFav) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
-                        accent = Color(0xFFFF2E63),
+                        accent = Color(0xFFEC4899),
                         onSelect = { Favorites.toggle(ctx, favTarget.first, favTarget.second) }
                     )
                 )

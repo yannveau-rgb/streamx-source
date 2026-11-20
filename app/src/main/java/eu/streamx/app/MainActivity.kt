@@ -228,7 +228,7 @@ fun Modifier.tvFocus(
         .clickable(interactionSource = interactionSource, indication = null, onClick = onClick)
 }
 
-enum class NavIconType { HOME, LIVE, MOVIES, SERIES, KIDS, MUSIC, TUBE, FAVORITES, M3U, SETTINGS, SEARCH }
+enum class NavIconType { HOME, LIVE, MOVIES, SERIES, KIDS, MUSIC, TUBE, FAVORITES, M3U, SETTINGS }
 
 data class NavItem(val label: Int, val type: NavIconType)
 
@@ -402,10 +402,7 @@ fun MainShell(account: Account, profiles: List<Account>, onSwitch: (Account) -> 
             )
     ) {
         Row(Modifier.fillMaxSize()) {
-            Sidebar(
-                items, selected, navReqs, contentReq, onSidebarSelect,
-                onSearch = { searchQuery = ""; detail = null; showNotifs = false; showM3u = false; searching = true; enterTick++ }
-            )
+            Sidebar(items, selected, navReqs, contentReq, onSidebarSelect)
             CompositionLocalProvider(LocalBringIntoViewSpec provides (if (lowRam) TvBringIntoViewLite else TvBringIntoView)) {
                 Box(
                     Modifier
@@ -477,6 +474,8 @@ fun StreamXLogoIcon(modifier: Modifier = Modifier) {
 
 @Composable
 fun SidebarNavIcon(type: NavIconType, active: Boolean, tint: Color, modifier: Modifier = Modifier) {
+    // Icônes dessinées pour StreamX (voir NavIcons.kt) ; les icônes Material ci-dessous ne servent plus que de secours.
+    NavIcons.get(type, active)?.let { Icon(it, contentDescription = null, tint = tint, modifier = modifier); return }
     when (type) {
         NavIconType.HOME -> Icon(
             if (active) Icons.Filled.Home else Icons.Outlined.Home,
@@ -492,7 +491,6 @@ fun SidebarNavIcon(type: NavIconType, active: Boolean, tint: Color, modifier: Mo
         NavIconType.TUBE -> Icon(Icons.Outlined.SmartDisplay, contentDescription = null, tint = tint, modifier = modifier)
         NavIconType.FAVORITES -> Icon(Icons.Outlined.FavoriteBorder, contentDescription = null, tint = tint, modifier = modifier)
         NavIconType.M3U -> Icon(Icons.Outlined.Link, contentDescription = null, tint = tint, modifier = modifier)
-        NavIconType.SEARCH -> Icon(Icons.Outlined.Search, contentDescription = null, tint = tint, modifier = modifier)
         NavIconType.SETTINGS -> Icon(Icons.Outlined.Settings, contentDescription = null, tint = tint, modifier = modifier)
     }
 }

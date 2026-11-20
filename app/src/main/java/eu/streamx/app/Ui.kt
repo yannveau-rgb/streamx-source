@@ -639,7 +639,7 @@ fun FavBadge(modifier: Modifier = Modifier, size: androidx.compose.ui.unit.Dp = 
         modifier
             .size(size)
             .clip(CircleShape)
-            .background(Color(0xFFE11D48))
+            .background(Color(0xFFEC4899))
             .border(1.5.dp, Color.White, CircleShape),
         contentAlignment = Alignment.Center
     ) {

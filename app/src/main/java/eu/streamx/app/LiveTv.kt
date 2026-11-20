@@ -490,7 +490,7 @@ fun LiveTvScreen(account: Account, onDetail: OpenDetail) {
                                     Box(
                                         Modifier
                                             .clip(RoundedCornerShape(5.dp))
-                                            .background(Brush.horizontalGradient(listOf(Color(0xFFFF2E63), Color(0xFFF59E0B))))
+                                            .background(Brush.horizontalGradient(listOf(Color(0xFF2DD4BF), Color(0xFF7B52FF))))
                                             .padding(horizontal = 6.dp, vertical = 2.dp)
                                     ) {
                                         Text("♥", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
@@ -693,12 +693,12 @@ fun LiveChannelCard(
             subtitle = sub,
             image = item.image,
             landscapeImage = true,
-            accentColor = if (isFav) Color(0xFFFF2E63) else Color(0xFF38BDF8),
+            accentColor = if (isFav) Color(0xFFEC4899) else Color(0xFF38BDF8),
             actions = listOf(
                 QuickAction(
                     label = stringResource(if (isFav) R.string.action_remove_fav else R.string.action_add_fav),
                     icon = if (isFav) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
-                    accent = Color(0xFFFF2E63),
+                    accent = Color(0xFFEC4899),
                     onSelect = { Favorites.toggle(ctx, Kind.LIVE, item, hubTag) }
                 ),
                 QuickAction(
@@ -852,7 +852,7 @@ fun LiveChannelCard(
                     Modifier
                         .size(5.dp)
                         .clip(CircleShape)
-                        .background(if (isFav) Color(0xFFFF4D79) else SX.Turquoise)
+                        .background(if (isFav) Color(0xFFF472B6) else SX.Turquoise)
                 )
                 Spacer(Modifier.width(6.dp))
                 Text(

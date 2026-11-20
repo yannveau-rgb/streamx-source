@@ -169,8 +169,6 @@
     <string name="info_cast">Cast: %1$s</string>
     <string name="player_next">Next episode: %1$s  ·  OK</string>
     <string name="search_voice">Voice search</string>
-    <string name="sb_catalog">Catalog</string>
-    <string name="sb_universes">Universes</string>
     <string name="sb_library">My library</string>
     <string name="nav_kids">Kids</string>
     <string name="nav_music">Music</string>
@@ -268,4 +266,9 @@
     <string name="tube_none">No results</string>
     <string name="tube_clear_history">Clear history</string>
     <string name="tube_quality">Quality %1$s</string>
+    <string name="voice_starting">Getting the microphone ready…</string>
+    <string name="voice_listening">Listening…</string>
+    <string name="voice_none">I didn’t hear anything. Try again.</string>
+    <string name="voice_unavailable">Voice recognition isn’t available right now.</string>
+    <string name="voice_cancel">Cancel</string>
 </resources>

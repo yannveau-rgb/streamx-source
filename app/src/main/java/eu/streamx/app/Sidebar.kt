@@ -74,20 +74,16 @@ data class NavTheme(val c1: Color, val c2: Color, val glow: Color, val ring: Col
 fun navThemeOf(type: NavIconType): NavTheme = when (type) {
     NavIconType.HOME -> NavTheme(Color(0xFF7B52FF), Color(0xFF3DE0C5), Color(0x788B5CF6), Color(0xFFB99AFF))
     NavIconType.LIVE -> NavTheme(Color(0xFF2563EB), Color(0xFF06B6D4), Color(0x7806B6D4), Color(0xFF67E8F9))
-    NavIconType.MOVIES -> NavTheme(Color(0xFFF59E0B), Color(0xFFE11D48), Color(0x78F43F5E), Color(0xFFFDA4AF))
+    NavIconType.MOVIES -> NavTheme(Color(0xFFF59E0B), Color(0xFFFACC15), Color(0x78F59E0B), Color(0xFFFCD34D))
     NavIconType.SERIES -> NavTheme(Color(0xFF6366F1), Color(0xFFD946EF), Color(0x78C084FC), Color(0xFFE879F9))
     NavIconType.KIDS -> NavTheme(Color(0xFFFF8A3D), Color(0xFFFF4D94), Color(0x78FF784E), Color(0xFFFFB088))
     NavIconType.MUSIC -> NavTheme(Color(0xFFEC4899), Color(0xFF8B5CF6), Color(0x78EC4899), Color(0xFFF472B6))
     // Tube : turquoise vers violet, dans la palette de l'appli (pas de rouge YouTube).
     NavIconType.TUBE -> NavTheme(Color(0xFF2DD4BF), Color(0xFF7B52FF), Color(0x782DD4BF), Color(0xFF99F6E4))
-    NavIconType.FAVORITES -> NavTheme(Color(0xFFFF2E63), Color(0xFFF59E0B), Color(0x78FF4D79), Color(0xFFFF8FA3))
+    NavIconType.FAVORITES -> NavTheme(Color(0xFFF472B6), Color(0xFF8B5CF6), Color(0x78F472B6), Color(0xFFF9A8D4))
     NavIconType.M3U -> NavTheme(Color(0xFF0EA5E9), Color(0xFF6366F1), Color(0x7838BDF8), Color(0xFF7DD3FC))
     NavIconType.SETTINGS -> NavTheme(Color(0xFF10B981), Color(0xFF3B82F6), Color(0x7810B981), Color(0xFF6EE7B7))
-    NavIconType.SEARCH -> NavTheme(Color(0xFF38BDF8), Color(0xFF7B52FF), Color(0x7838BDF8), Color(0xFF7DD3FC))
 }
-
-/** Clé de la ligne « Recherche » dans la table des positions (les rubriques utilisent leur index). */
-private const val SEARCH_KEY = 100
 
 // Constantes du dôme, en dp (reprises du composant « Flow Tab Bar » : base d'environ 56, hauteur d'environ 15).
 private const val BUMP_H = 12f
@@ -156,9 +152,7 @@ private class Droplet {
  */
 @OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
-fun Sidebar(items: List<NavItem>, selected: Int, requesters: List<FocusRequester>, enterContent: FocusRequester, onSelect: (Int) -> Unit, onSearch: () -> Unit) {
-    val searchReq = remember { FocusRequester() }
-    val searchItem = remember { NavItem(R.string.search_title, NavIconType.SEARCH) }
+fun Sidebar(items: List<NavItem>, selected: Int, requesters: List<FocusRequester>, enterContent: FocusRequester, onSelect: (Int) -> Unit) {
     val lowRam = LocalLowRamMode.current
     val density = LocalDensity.current.density
     var focusedKey by remember { mutableIntStateOf(-1) }
@@ -166,7 +160,7 @@ fun Sidebar(items: List<NavItem>, selected: Int, requesters: List<FocusRequester
     val targetKey = if (focusedKey != -1) focusedKey else activeKey
     val activeIdx = if (!lowRam && focusedKey in items.indices) focusedKey else activeKey
     val ambientTheme = navThemeOf(items[activeIdx].type)
-    val targetType = if (targetKey == SEARCH_KEY) NavIconType.SEARCH else items[targetKey.coerceIn(items.indices)].type
+    val targetType = items[targetKey.coerceIn(items.indices)].type
     // Focus dans le contenu : la goutte prend la couleur de l'affiche à l'écran (bandeau d'accueil, fiche).
     val accent = Accent.color
     val baseTint = navThemeOf(targetType).c1
@@ -318,7 +312,7 @@ fun Sidebar(items: List<NavItem>, selected: Int, requesters: List<FocusRequester
             item = items[i],
             highlight = i == targetKey,
             requester = requesters[i],
-            up = if (i == 0) searchReq else requesters.getOrNull(i - 1),
+            up = if (i == 0) FocusRequester.Cancel else requesters.getOrNull(i - 1),
             down = requesters.getOrNull(i + 1),
             onPlaced = { rects[i] = it },
             onFocusState = { isFocused ->
@@ -327,56 +321,27 @@ fun Sidebar(items: List<NavItem>, selected: Int, requesters: List<FocusRequester
             onClick = { onSelect(i) }
         )
 
-        // 0. Recherche : accessible depuis toutes les rubriques
-        NavRow(
-            item = searchItem, highlight = targetKey == SEARCH_KEY, requester = searchReq, down = requesters.getOrNull(0),
-            onPlaced = { rects[SEARCH_KEY] = it },
-            onFocusState = { isFocused -> if (isFocused) focusedKey = SEARCH_KEY else if (focusedKey == SEARCH_KEY) focusedKey = -1 },
-            onClick = onSearch
-        )
-
-        // 1. Accueil
+        // Accueil
         row(0)
 
-        // 2. Catalogue principal
-        Caption(R.string.sb_catalog)
+        // Catalogue (TV en direct, Films, Séries) : un simple espace le sépare, sans légende
+        Spacer(Modifier.height(14.dp))
         row(1)
         row(2)
         row(3)
 
-        // 3. Univers thématiques (Enfants & Musique)
-        Caption(R.string.sb_universes)
+        // Univers (Enfants, Musique, Tube)
+        Spacer(Modifier.height(14.dp))
         row(4)
         row(5)
         row(6)
 
         Spacer(Modifier.weight(1f))
 
-        // Filet lumineux séparant l'espace personnel
-        Box(
-            Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 5.dp)
-                .height(0.8.dp)
-                .background(
-                    Brush.horizontalGradient(
-                        listOf(Color.Transparent, Color(0x33FFFFFF), Color(0x338FE9DA), Color.Transparent)
-                    )
-                )
-        )
-
-        // 4. Espace personnel (Favoris & Réglages)
+        // Espace personnel (Favoris, Réglages), en bas
         row(7)
         row(8)
     }
-}
-
-@Composable
-private fun Caption(label: Int) {
-    Text(
-        stringResource(label).uppercase(), color = SX.Overline, fontSize = 9.5.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.3.sp,
-        modifier = Modifier.padding(start = 8.dp, top = 7.dp, bottom = 3.dp)
-    )
 }
 
 @Composable
@@ -411,7 +376,7 @@ private fun NavRow(
             // Pas de contour ni de halo propres à la ligne : c'est la goutte, dans le contour du panneau, qui marque la rubrique.
             .tvFocus(shape = shape, cornerRadius = 13.dp, scale = 1f, decorate = false, onClick = onClick)
             .clip(shape)
-            .padding(horizontal = 6.dp, vertical = 4.5.dp),
+            .padding(horizontal = 6.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
@@ -432,10 +397,10 @@ private fun NavRow(
                 }
         ) {
             Box(
-                Modifier.matchParentSize().glass(tile, if (highlight) 1.0f else 0.65f),
+                Modifier.matchParentSize().then(if (highlight) Modifier.glass(tile, 1.0f) else Modifier),
                 contentAlignment = Alignment.Center
             ) {
-                SidebarNavIcon(item.type, highlight, if (highlight) Color.White else Color(0xFFC2C7DE), Modifier.size(15.dp))
+                SidebarNavIcon(item.type, highlight, if (highlight) Color.White else Color(0xFFA9B0CC), Modifier.size(18.dp))
             }
             if (hasUpdateBadge) {
                 Box(
@@ -443,7 +408,7 @@ private fun NavRow(
                         .align(Alignment.TopEnd)
                         .size(8.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFFFF3B5C))
+                        .background(Color(0xFFF59E0B))
                 )
             }
         }
@@ -451,26 +416,11 @@ private fun NavRow(
         Text(
             stringResource(item.label),
             color = if (highlight) Color.White else Color(0xFFC9CEE4),
-            fontSize = 11.5.sp,
+            fontSize = 12.5.sp,
             fontWeight = if (highlight) FontWeight.SemiBold else FontWeight.Medium,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f)
         )
-        if (hasUpdateBadge) {
-            Box(
-                Modifier
-                    .clip(RoundedCornerShape(50))
-                    .background(Brush.horizontalGradient(listOf(Color(0xFFFF2E63), Color(0xFFF59E0B))))
-                    .padding(horizontal = 6.dp, vertical = 1.5.dp)
-            ) {
-                Text(
-                    text = stringResource(R.string.update_badge_new),
-                    color = Color.White,
-                    fontSize = 8.5.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-        }
     }
 }

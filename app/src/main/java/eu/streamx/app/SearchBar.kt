@@ -105,15 +105,9 @@ fun HomeSearchBar(account: Account, onOpenAll: (String) -> Unit, onDetail: OpenD
             }
         }
     }
-    val voiceIntent = remember {
-        Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-    }
-    val canSpeak = remember { ctx.packageManager.resolveActivity(voiceIntent, 0) != null }
-    val speak = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { r ->
-        if (r.resultCode == Activity.RESULT_OK) {
-            r.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()?.let { setQuery(it) }
-        }
-    }
+    // Recherche vocale intégrée (voir VoiceSearch.kt) : l'appli écoute elle-même, sans l'ancien écran Google.
+    val startVoice = rememberVoiceSearch { setQuery(it) }
+    val canSpeak = true
     val showPanel = active && query.trim().length >= 2
     BackHandler(enabled = showPanel) { setQuery(""); focusManager.clearFocus() }
 
@@ -184,7 +178,7 @@ fun HomeSearchBar(account: Account, onOpenAll: (String) -> Unit, onDetail: OpenD
                     Icons.Outlined.Mic, stringResource(R.string.search_voice), tint = Color.White,
                     modifier = Modifier
                         .size(26.dp)
-                        .tvFocus(mic, cornerRadius = 13.dp, scale = 1.12f) { runCatching { speak.launch(voiceIntent) } }
+                        .tvFocus(mic, cornerRadius = 13.dp, scale = 1.12f) { startVoice() }
                         .clip(mic)
                         .padding(4.dp)
                 )

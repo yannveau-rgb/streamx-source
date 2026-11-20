@@ -458,7 +458,7 @@ fun ItemCard(item: Item, landscape: Boolean, onFocus: (() -> Unit)? = null, onCl
                 QuickAction(
                     label = stringResource(if (isFav) R.string.action_remove_fav else R.string.action_add_fav),
                     icon = if (isFav) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
-                    accent = Color(0xFFFF2E63),
+                    accent = Color(0xFFEC4899),
                     onSelect = { Favorites.toggle(ctx, item.kind, item) }
                 )
             )
@@ -492,7 +492,7 @@ fun ItemCard(item: Item, landscape: Boolean, onFocus: (() -> Unit)? = null, onCl
             subtitle = sub,
             image = item.image,
             landscapeImage = false,
-            accentColor = if (isFav) Color(0xFFFF2E63) else SX.VioletLight,
+            accentColor = if (isFav) Color(0xFFEC4899) else SX.VioletLight,
             actions = actions,
             onDismiss = { showMenu = false }
         )

@@ -106,15 +106,8 @@ fun TubeSearchBar(query: String, onQuery: (String) -> Unit, onSubmit: (String) -
         }
     }
 
-    val voiceIntent = remember {
-        Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-    }
-    val canSpeak = remember { ctx.packageManager.resolveActivity(voiceIntent, 0) != null }
-    val speak = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { r ->
-        if (r.resultCode == Activity.RESULT_OK) {
-            r.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()?.let { setText(it); onSubmit(it) }
-        }
-    }
+    val startVoice = rememberVoiceSearch { setText(it); onSubmit(it) }
+    val canSpeak = true
 
     fun submit(s: String) {
         val q = s.trim()
@@ -213,7 +206,7 @@ fun TubeSearchBar(query: String, onQuery: (String) -> Unit, onSubmit: (String) -
                     modifier = Modifier
                         .size(28.dp)
                         .then(downMod)
-                        .tvFocus(CircleShape, cornerRadius = 14.dp, scale = 1.12f) { runCatching { speak.launch(voiceIntent) } }
+                        .tvFocus(CircleShape, cornerRadius = 14.dp, scale = 1.12f) { startVoice() }
                         .clip(CircleShape)
                         .padding(4.dp)
                 )

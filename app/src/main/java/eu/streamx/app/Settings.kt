@@ -292,7 +292,7 @@ private fun SettingUpdateRow() {
                     Box(
                         Modifier
                             .clip(RoundedCornerShape(50))
-                            .background(Brush.horizontalGradient(listOf(Color(0xFFFF2E63), Color(0xFFF59E0B))))
+                            .background(Brush.horizontalGradient(listOf(Color(0xFF2DD4BF), Color(0xFF7B52FF))))
                             .padding(horizontal = 7.dp, vertical = 2.dp)
                     ) {
                         Text(
@@ -357,7 +357,7 @@ private fun SettingUpdateRow() {
                             Modifier
                                 .fillMaxWidth((progress / 100f).coerceIn(0.02f, 1f))
                                 .fillMaxHeight()
-                                .background(Brush.horizontalGradient(listOf(Color(0xFFFF2E63), SX.VioletLight)))
+                                .background(Brush.horizontalGradient(listOf(Color(0xFF2DD4BF), SX.VioletLight)))
                         )
                     }
                 }
@@ -472,7 +472,7 @@ fun AccountScreen(
                     Row(
                         Modifier
                             .clip(RoundedCornerShape(50))
-                            .background(Brush.horizontalGradient(listOf(Color(0xFFFF2E63), Color(0xFFF59E0B))))
+                            .background(Brush.horizontalGradient(listOf(Color(0xFF2DD4BF), Color(0xFF7B52FF))))
                             .padding(horizontal = 9.dp, vertical = 2.5.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {

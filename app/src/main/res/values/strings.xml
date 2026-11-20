@@ -169,8 +169,6 @@
     <string name="info_cast">Avec : %1$s</string>
     <string name="player_next">Épisode suivant : %1$s  ·  OK</string>
     <string name="search_voice">Recherche vocale</string>
-    <string name="sb_catalog">Catalogue</string>
-    <string name="sb_universes">Univers</string>
     <string name="sb_library">Ma bibliothèque</string>
     <string name="nav_kids">Enfants</string>
     <string name="nav_music">Musique</string>
@@ -268,4 +266,9 @@
     <string name="tube_none">Aucun résultat</string>
     <string name="tube_clear_history">Effacer l’historique</string>
     <string name="tube_quality">Qualité %1$s</string>
+    <string name="voice_starting">Préparation du micro…</string>
+    <string name="voice_listening">Je t’écoute…</string>
+    <string name="voice_none">Je n’ai rien entendu. Réessaie.</string>
+    <string name="voice_unavailable">La reconnaissance vocale n’est pas disponible pour le moment.</string>
+    <string name="voice_cancel">Annuler</string>
 </resources>
