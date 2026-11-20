@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Barre de progression du lecteur, à la façon de YouTube TV : épaisse, blanche, sur toute la largeur ; le curseur n'apparaît que quand elle a le focus. -->
+<androidx.media3.ui.DefaultTimeBar xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="30dp"
+    app:bar_height="6dp"
+    app:touch_target_height="30dp"
+    app:scrubber_enabled_size="0dp"
+    app:scrubber_disabled_size="0dp"
+    app:scrubber_dragged_size="22dp"
+    app:played_color="#FFFFFFFF"
+    app:scrubber_color="#FFFFFFFF"
+    app:buffered_color="#66FFFFFF"
+    app:unplayed_color="#40FFFFFF" />
