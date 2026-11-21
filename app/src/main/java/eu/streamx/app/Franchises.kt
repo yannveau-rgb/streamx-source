@@ -1,5 +1,9 @@
 package eu.streamx.app
 
+import android.content.Context
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+
 /**
  * « Univers » de films et de séries (Marvel, Star Wars, Disney, Pat'Patrouille…) reconnus par le titre.
  * Chaque univers devient une rangée (et une pastille) dès qu'il a assez de titres dans l'abonnement.
@@ -91,12 +95,32 @@ object Franchises {
         return all.mapNotNull { (pf, _) -> kept[pf.key]?.let { pf to it } }.sortedByDescending { it.second.size }
     }
 
+    private val cache = HashMap<Pair<Kind, Int>, Pair<Set<String>, List<Pair<PlatformInfo, List<Entry>>>>>()
+
+    @Synchronized
+    fun cached(kind: Kind, hidden: Set<String>): List<Pair<PlatformInfo, List<Entry>>>? {
+        val cv = Catalog.version
+        return cache[kind to cv]?.takeIf { it.first == hidden }?.second
+    }
+
     /** Films ou séries de l'abonnement (hors catégories masquées) rangés par univers. */
     fun rowsFor(kind: Kind, hidden: Set<String>): List<Pair<PlatformInfo, List<Entry>>> {
+        cached(kind, hidden)?.let { return it }
+        val cv = Catalog.version
         val entries = Catalog.list(kind)
         val norm = ProviderIndex.normalizedTitles(kind)
         if (entries.size != norm.size) return emptyList()
         val idx = entries.indices.filter { entries[it].cat !in hidden }
-        return rows(GENERAL, idx.map { entries[it] }, idx.map { norm[it] })
+        val out = rows(GENERAL, idx.map { entries[it] }, idx.map { norm[it] })
+        if (entries.isNotEmpty()) synchronized(this) { cache[kind to cv] = HashSet(hidden) to out }
+        return out
+    }
+
+    /** Pré-calcule les univers Films & Séries en tâche de fond pour éviter tout décalage à l'ouverture. */
+    suspend fun prewarm(ctx: Context) {
+        withContext(Dispatchers.Default) {
+            rowsFor(Kind.VOD, HiddenStore.load(ctx, Kind.VOD))
+            rowsFor(Kind.SERIES, HiddenStore.load(ctx, Kind.SERIES))
+        }
     }
 }

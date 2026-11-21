@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.ChildCare
 import androidx.compose.material.icons.outlined.MusicNote
+import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -363,15 +364,14 @@ fun ThemedHubScreen(theme: HubTheme, account: Account, onDetail: OpenDetail) {
                 if (theme == HubTheme.KIDS) NavIconType.KIDS else NavIconType.MUSIC,
                 stringResource(if (theme == HubTheme.KIDS) R.string.nav_kids else R.string.nav_music),
                 stringResource(if (theme == HubTheme.KIDS) R.string.hub_kids_sub else R.string.hub_music_sub),
-                modifier = Modifier.padding(horizontal = 28.dp),
-                tileSize = if (theme == HubTheme.KIDS) 40.dp else 36.dp,
-                tileCorner = if (theme == HubTheme.KIDS) 20.dp else 11.dp
+                modifier = Modifier.padding(horizontal = 28.dp)
             )
             Spacer(Modifier.height(12.dp))
 
             // Pastilles de filtrage + favoris rapides
             LazyRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
                 contentPadding = PaddingValues(horizontal = 28.dp, vertical = 4.dp)
             ) {
                 item(key = "all") {
@@ -409,8 +409,9 @@ fun ThemedHubScreen(theme: HubTheme, account: Account, onDetail: OpenDetail) {
                         SelectChip(stringResource(R.string.series), filter == "series") { filter = "series" }
                     }
                 }
+                item(key = "sep") { Box(Modifier.padding(horizontal = 4.dp).width(1.dp).height(20.dp).background(Color(0x26FFFFFF))) }
                 item(key = "manage_categories") {
-                    ActionChip(stringResource(R.string.cat_manage)) {
+                    ActionChip(stringResource(R.string.cat_manage), icon = Icons.Outlined.Tune) {
                         managingKind = when (filter) {
                             "vod" -> Kind.VOD
                             "series" -> Kind.SERIES
@@ -449,7 +450,7 @@ fun ThemedHubScreen(theme: HubTheme, account: Account, onDetail: OpenDetail) {
 
                 LazyColumn(
                     Modifier.weight(1f).fillMaxWidth(),
-                    contentPadding = PaddingValues(start = 28.dp, bottom = 20.dp)
+                    contentPadding = PaddingValues(start = 28.dp, top = 6.dp, bottom = 20.dp)
                 ) {
                     // 1. Chaînes favorites de cet univers, épinglées dès l'arrivée sur le menu
                     if (favLive.isNotEmpty() && (filter == "all" || filter == "live" || filter == "favs")) {
@@ -475,9 +476,9 @@ fun ThemedHubScreen(theme: HubTheme, account: Account, onDetail: OpenDetail) {
                                 )
                             }
                             LazyRow(
-                                Modifier.height(112.dp).bleedStart(),
+                                Modifier.height(118.dp).bleedStart(),
                                 horizontalArrangement = Arrangement.spacedBy(11.dp),
-                                contentPadding = PaddingValues(horizontal = 28.dp, vertical = 7.dp)
+                                contentPadding = PaddingValues(horizontal = 28.dp, vertical = 10.dp)
                             ) {
                                 items(favLive, key = { "fav_" + it.id }) { ch ->
                                     LiveChannelCard(
@@ -509,16 +510,16 @@ fun ThemedHubScreen(theme: HubTheme, account: Account, onDetail: OpenDetail) {
                                 }
                                 Spacer(Modifier.width(8.dp))
                                 Text(
-                                    text = if (theme == HubTheme.KIDS) "Films & Séries favoris · Enfants" else "Concerts & Titres favoris · Musique",
+                                    text = stringResource(if (theme == HubTheme.KIDS) R.string.favs_kids_vod else R.string.favs_music_vod),
                                     color = Color.White,
                                     fontSize = 16.sp,
                                     fontWeight = FontWeight.SemiBold
                                 )
                             }
                             LazyRow(
-                                Modifier.height(192.dp).bleedStart(),
+                                Modifier.height(198.dp).bleedStart(),
                                 horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                contentPadding = PaddingValues(horizontal = 28.dp, vertical = 7.dp)
+                                contentPadding = PaddingValues(horizontal = 28.dp, vertical = 10.dp)
                             ) {
                                 items(favVod, key = { "fav_vod_" + it.kind.key + ":" + it.id }) { item ->
                                     ItemCard(item, false, onFocus = { focusedLive = null }) {
@@ -547,9 +548,9 @@ fun ThemedHubScreen(theme: HubTheme, account: Account, onDetail: OpenDetail) {
                                     modifier = Modifier.padding(bottom = 2.dp, end = 28.dp)
                                 )
                                 LazyRow(
-                                    Modifier.height(112.dp).bleedStart(),
+                                    Modifier.height(118.dp).bleedStart(),
                                     horizontalArrangement = Arrangement.spacedBy(11.dp),
-                                    contentPadding = PaddingValues(horizontal = 28.dp, vertical = 7.dp)
+                                    contentPadding = PaddingValues(horizontal = 28.dp, vertical = 10.dp)
                                 ) {
                                     items(hub.otherLive, key = { it.id }) { e ->
                                         val item = e.toItem()

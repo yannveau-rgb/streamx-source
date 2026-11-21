@@ -12,7 +12,7 @@
     <string name="badge_series">Série</string>
     <string name="badge_movie">Film</string>
     <string name="play">Lire</string>
-    <string name="my_list">Ma liste</string>
+    <string name="my_list">Favoris</string>
     <string name="continue_watching">Reprendre la lecture</string>
     <string name="trending">Tendances du moment</string>
     <string name="channels_hint">chaînes</string>
@@ -84,13 +84,13 @@
     <string name="expired_on">Expiré le %1$s</string>
     <string name="notif_expired_title">Abonnement expiré</string>
     <string name="catalog_error">Impossible de charger le catalogue. Relance l\'application pour réessayer.</string>
-    <string name="in_my_list">Dans ma liste</string>
+    <string name="in_my_list">Dans les favoris</string>
     <string name="restart">Recommencer</string>
     <string name="resume_at">Reprendre à %1$d min</string>
     <string name="similar">Dans la même catégorie</string>
     <string name="resume_episode">Reprendre S%1$d E%2$d</string>
     <string name="play_episode">Lire S%1$d E%2$d</string>
-    <string name="favs_empty">Ta liste est vide. Ajoute un film, une série ou une chaîne avec « Ma liste ».</string>
+    <string name="favs_empty">Tes favoris sont vides. Ajoute un film, une série ou une chaîne avec « Favoris ».</string>
     <string name="favs_movies">Mes films</string>
     <string name="favs_series">Mes séries</string>
     <string name="favs_live">Mes chaînes</string>
@@ -146,6 +146,8 @@
     <string name="set_profile">Profil</string>
     <string name="add_profile">+ Profil</string>
     <string name="remove_profile">Déconnexion</string>
+    <string name="logout_confirm_title">Se déconnecter du profil ?</string>
+    <string name="logout_confirm_msg">Tu devras saisir de nouveau les identifiants de « %1$s » pour te reconnecter.</string>
     <string name="set_languages">Langues</string>
     <string name="set_support">Assistance</string>
     <string name="support_copy">Copier le diagnostic</string>
@@ -186,7 +188,9 @@
     <string name="live_facet_news">Actualités &amp; Info</string>
     <string name="favs_subtitle">Tes chaînes TV, univers Enfants, Musique, films et séries favoris triés</string>
     <string name="favs_kids_live">Mes chaînes favorites · Enfants</string>
+    <string name="favs_kids_vod">Films &amp; Séries favoris · Enfants</string>
     <string name="favs_music_live">Mes chaînes favorites · Musique</string>
+    <string name="favs_music_vod">Concerts &amp; Titres favoris · Musique</string>
     <string name="epg_fav_hint">Maintenir OK : Options &amp; Favoris</string>
     <string name="epg_fav_on">♥ En favoris (Maintenir OK pour options)</string>
     <string name="active_short">Jusqu\'au %1$s</string>
@@ -241,6 +245,7 @@
     <string name="pl_normal">Normale</string>
     <string name="pl_track">Piste %1$d</string>
     <string name="pl_none">Aucune piste disponible</string>
+    <string name="pl_stereo">stéréo</string>
     <string name="pl_left">%1$s restantes</string>    <string name="tmdb_credit_title">Données de tendances</string>
     <string name="tmdb_credit">Ce produit utilise l\'API TMDB mais n\'est ni approuvé ni certifié par TMDB.</string>
 
@@ -271,4 +276,8 @@
     <string name="voice_none">Je n’ai rien entendu. Réessaie.</string>
     <string name="voice_unavailable">La reconnaissance vocale n’est pas disponible pour le moment.</string>
     <string name="voice_cancel">Annuler</string>
+    <string name="qr_title">Connexion par téléphone</string>
+    <string name="qr_sub">Scanne avec ton téléphone (même Wi-Fi) pour envoyer tes identifiants sans taper à la télécommande.</string>
+    <string name="qr_no_wifi">Connecte la télé au Wi-Fi pour afficher le QR code.</string>
+    <string name="qr_received">Identifiants reçus, connexion…</string>
 </resources>

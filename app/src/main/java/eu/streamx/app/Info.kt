@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -52,13 +51,33 @@ suspend fun XtreamApi.vodInfo(a: Account, id: String): Info? {
     }
 }
 
+private fun formatDuration(raw: String): String {
+    val s = raw.trim()
+    if (s.isEmpty()) return ""
+    val parts = s.split(":").mapNotNull { it.trim().toIntOrNull() }
+    val totalMin = when (parts.size) {
+        3 -> parts[0] * 60 + parts[1] + (if (parts[2] >= 30) 1 else 0)
+        2 -> parts[0] + (if (parts[1] >= 30) 1 else 0)
+        else -> s.removeSuffix("min").trim().toIntOrNull() ?: return s
+    }
+    if (totalMin <= 0) return ""
+    val h = totalMin / 60
+    val m = totalMin % 60
+    return when {
+        h > 0 && m > 0 -> "${h}h %02d".format(m)
+        h > 0 -> "${h}h"
+        else -> "$m min"
+    }
+}
+
 /** Genres · durée, résumé et casting sous le titre d'une fiche. */
 @Composable
 fun InfoBlock(info: Info?, modifier: Modifier = Modifier) {
     if (info == null) return
     Column(modifier) {
-        val line = listOf(info.genre, info.duration).filter { it.isNotEmpty() }.joinToString("  ·  ")
-        if (line.isNotEmpty()) Text(line, color = Color(0xFFD6C2FF), fontSize = 11.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        val dur = formatDuration(info.duration)
+        val line = listOf(info.genre, dur).filter { it.isNotEmpty() }.joinToString("  ·  ")
+        if (line.isNotEmpty()) Text(line, color = LocalNavTheme.current.ring, fontSize = 11.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
         if (info.plot.isNotEmpty()) {
             Text(info.plot, color = SX.Text2, fontSize = 12.5.sp, lineHeight = 18.sp, maxLines = 4, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 6.dp).widthIn(max = 520.dp))
         }

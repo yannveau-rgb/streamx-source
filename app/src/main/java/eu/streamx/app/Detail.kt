@@ -31,7 +31,10 @@ import androidx.compose.material.icons.outlined.Replay
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.getValue
@@ -58,6 +61,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 
 /**
@@ -265,12 +269,17 @@ fun MovieScreen(account: Account, item: Item, onBack: () -> Unit, onDetail: Open
                     val info by produceState<Info?>(InfoCache.get("vod:" + item.id), item.id) { value = XtreamApi.vodInfo(account, item.id) }
                     InfoBlock(info, Modifier.padding(top = 8.dp))
                     Spacer(Modifier.height(14.dp))
+                    val playFocus = remember(item.id) { FocusRequester() }
+                    LaunchedEffect(item.id) {
+                        delay(50)
+                        runCatching { playFocus.requestFocus() }
+                    }
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         if (resumeMs > 20_000) {
-                            PillButton(stringResource(R.string.resume_at, (resumeMs / 60000).toInt()), Icons.Filled.PlayArrow, true) { playMovie(ctx, account, item, false) }
+                            PillButton(stringResource(R.string.resume_at, (resumeMs / 60000).toInt()), Icons.Filled.PlayArrow, true, Modifier.focusRequester(playFocus)) { playMovie(ctx, account, item, false) }
                             PillButton(stringResource(R.string.restart), Icons.Outlined.Replay, false) { playMovie(ctx, account, item, true) }
                         } else {
-                            PillButton(stringResource(R.string.play), Icons.Filled.PlayArrow, true) { playMovie(ctx, account, item, true) }
+                            PillButton(stringResource(R.string.play), Icons.Filled.PlayArrow, true, Modifier.focusRequester(playFocus)) { playMovie(ctx, account, item, true) }
                         }
                         ListButton(Kind.VOD, item)
                         TrailerButton(Kind.VOD, item)

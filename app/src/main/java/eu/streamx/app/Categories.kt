@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.material3.Icon
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -41,6 +43,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.delay
 
 data class Category(val id: String, val name: String)
 
@@ -174,9 +177,17 @@ fun CategoriesScreen(kind: Kind, account: Account, title: Int, onDone: (() -> Un
             // Langue détectée aussi par le contenu (préfixe « FR: » des chaînes), pas seulement par le nom de la catégorie.
             val frSet = remember(list, kind, Catalog.version) { CategoryRules.frenchIds(kind, list) }
             val visible = list.count { it.id !in hidden }
+            val firstFocus = remember { FocusRequester() }
+            LaunchedEffect(Unit) {
+                delay(40)
+                runCatching { firstFocus.requestFocus() }
+            }
             Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-                if (onDone != null) ActionChip(stringResource(R.string.cat_done)) { onDone() }
-                ActionChip(stringResource(R.string.cat_fr_only)) {
+                if (onDone != null) ActionChip(stringResource(R.string.cat_done), Modifier.focusRequester(firstFocus)) { onDone() }
+                ActionChip(
+                    stringResource(R.string.cat_fr_only),
+                    if (onDone == null) Modifier.focusRequester(firstFocus) else Modifier
+                ) {
                     update(list.filter { it.id !in frSet || CategoryRules.isAdult(it.name) }.map { it.id }.toSet())
                 }
                 ActionChip(stringResource(R.string.cat_hide_adult)) {
@@ -298,7 +309,7 @@ fun CategoryRow(name: String, on: Boolean, onToggle: () -> Unit) {
                 .width(34.dp)
                 .height(20.dp)
                 .clip(CircleShape)
-                .background(if (on) SX.Turquoise else Color(0x33FFFFFF)),
+                .background(if (on) lerp(SX.Turquoise, Color(0xFF0D9488), p) else lerp(Color(0x33FFFFFF), Color(0x380B0D19), p)),
             contentAlignment = if (on) Alignment.CenterEnd else Alignment.CenterStart
         ) {
             Box(Modifier.padding(2.dp).size(16.dp).clip(CircleShape).background(Color.White))

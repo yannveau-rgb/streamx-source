@@ -352,14 +352,15 @@ class PlayerControls(
         menuOwner?.requestFocus()
     }
 
-    /** Coche tracée (#3DE0C5) ; transparente quand l'entrée n'est pas sélectionnée, pour garder l'alignement. */
-    private fun checkDrawable(on: Boolean): android.graphics.drawable.Drawable {
+    /** Coche tracée (#3DE0C5 au repos, turquoise foncé sur fond blanc focalisé) ; transparente sinon pour garder l'alignement. */
+    private fun checkDrawable(on: Boolean, focused: Boolean = false): android.graphics.drawable.Drawable {
         val sz = dp(22)
         val bmp = android.graphics.Bitmap.createBitmap(sz, sz, android.graphics.Bitmap.Config.ARGB_8888)
         if (on) {
             val c = android.graphics.Canvas(bmp)
             val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
-                color = 0xFF3DE0C5.toInt(); style = android.graphics.Paint.Style.STROKE
+                color = if (focused) 0xFF0B6B5C.toInt() else 0xFF3DE0C5.toInt()
+                style = android.graphics.Paint.Style.STROKE
                 strokeWidth = sz * 0.14f; strokeCap = android.graphics.Paint.Cap.ROUND; strokeJoin = android.graphics.Paint.Join.ROUND
             }
             val path = android.graphics.Path().apply {
@@ -373,7 +374,7 @@ class PlayerControls(
     private fun item(label: String, selected: Boolean, onPick: () -> Unit) = TextView(ctx).apply {
         text = label
         compoundDrawablePadding = dp(12)
-        setCompoundDrawablesRelativeWithIntrinsicBounds(checkDrawable(selected), null, null, null)
+        setCompoundDrawablesRelativeWithIntrinsicBounds(checkDrawable(selected, false), null, null, null)
         setTextColor(Color.WHITE)
         textSize = 20f
         isFocusable = true
@@ -383,7 +384,12 @@ class PlayerControls(
             addState(intArrayOf(android.R.attr.state_focused), GradientDrawable().apply { setColor(Color.WHITE); cornerRadius = dp(14).toFloat() })
             addState(intArrayOf(), GradientDrawable().apply { setColor(0x00000000) })
         }
-        setOnFocusChangeListener { v, f -> (v as TextView).setTextColor(if (f) DARK else Color.WHITE) }
+        setOnFocusChangeListener { v, f ->
+            (v as TextView).apply {
+                setTextColor(if (f) DARK else Color.WHITE)
+                setCompoundDrawablesRelativeWithIntrinsicBounds(checkDrawable(selected, f), null, null, null)
+            }
+        }
         setOnClickListener { onPick() }
     }
 
@@ -443,7 +449,7 @@ class PlayerControls(
             n++
             val f = g.getTrackFormat(i)
             val base = langName(f.language) ?: f.label ?: ctx.getString(R.string.pl_track, n)
-            val extra = if (!isText && f.channelCount > 0) when (f.channelCount) { 1 -> " · mono"; 2 -> " · stéréo"; 6 -> " · 5.1"; 8 -> " · 7.1"; else -> "" } else ""
+            val extra = if (!isText && f.channelCount > 0) when (f.channelCount) { 1 -> " · mono"; 2 -> " · " + ctx.getString(R.string.pl_stereo); 6 -> " · 5.1"; 8 -> " · 7.1"; else -> "" } else ""
             val sel = g.isTrackSelected(i) && !(isText && p.trackSelectionParameters.disabledTrackTypes.contains(C.TRACK_TYPE_TEXT))
             entries.add(Triple(base + extra, sel) {
                 val b = p.trackSelectionParameters.buildUpon()

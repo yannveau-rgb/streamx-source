@@ -265,27 +265,39 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-/** Défilement de la télécommande : on ne bouge que si la vignette sort de l'écran, en douceur, avec une petite marge. */
+/** Défilement de la télécommande : garde une marge de confort autour de la carte focalisée pour ne jamais rogner sa bordure ni son ombre. */
+private fun tvScrollDistance(offset: Float, size: Float, containerSize: Float, marginFrac: Float): Float {
+    if (containerSize <= 0f) return 0f
+    val margin = containerSize * marginFrac
+    val maxTrailing = containerSize - margin
+    val trailing = offset + size
+    if (size > maxTrailing - margin) {
+        return when {
+            offset <= 0f && trailing >= containerSize -> 0f
+            offset < 0f -> offset
+            trailing > containerSize -> trailing - containerSize
+            else -> 0f
+        }
+    }
+    return when {
+        offset < margin -> offset - margin
+        trailing > maxTrailing -> trailing - maxTrailing
+        else -> 0f
+    }
+}
+
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 private val TvBringIntoView = object : BringIntoViewSpec {
     override val scrollAnimationSpec: AnimationSpec<Float> = tween(durationMillis = 220, easing = FastOutSlowInEasing)
-    override fun calculateScrollDistance(offset: Float, size: Float, containerSize: Float): Float {
-        val trailing = offset + size
-        if (offset >= 0f && trailing <= containerSize) return 0f
-        val margin = containerSize * 0.08f
-        return if (offset < 0f) offset - margin else trailing - containerSize + margin
-    }
+    override fun calculateScrollDistance(offset: Float, size: Float, containerSize: Float): Float =
+        tvScrollDistance(offset, size, containerSize, 0.08f)
 }
 
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 private val TvBringIntoViewLite = object : BringIntoViewSpec {
     override val scrollAnimationSpec: AnimationSpec<Float> = tween(durationMillis = 100, easing = FastOutSlowInEasing)
-    override fun calculateScrollDistance(offset: Float, size: Float, containerSize: Float): Float {
-        val trailing = offset + size
-        if (offset >= 0f && trailing <= containerSize) return 0f
-        val margin = containerSize * 0.06f
-        return if (offset < 0f) offset - margin else trailing - containerSize + margin
-    }
+    override fun calculateScrollDistance(offset: Float, size: Float, containerSize: Float): Float =
+        tvScrollDistance(offset, size, containerSize, 0.06f)
 }
 
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class, androidx.compose.ui.ExperimentalComposeUiApi::class)
@@ -334,6 +346,7 @@ fun MainShell(account: Account, profiles: List<Account>, onSwitch: (Account) -> 
     LaunchedEffect(Catalog.version, HiddenVersion.v) {
         delay(1500)
         runCatching { prewarmHubs(chimeCtx) }
+        runCatching { Franchises.prewarm(chimeCtx) }
     }
     LaunchedEffect(account, resumeTick) {
         delay(6000)

@@ -310,7 +310,7 @@ fun FavoritesScreen(account: Account, onDetail: OpenDetail) {
 
                 LazyColumn(
                     Modifier.weight(1f).fillMaxWidth(),
-                    contentPadding = PaddingValues(start = 28.dp, bottom = 16.dp)
+                    contentPadding = PaddingValues(start = 28.dp, top = 4.dp, bottom = 28.dp)
                 ) {
                     if ((filter == "all" || filter == "live") && generalLiveFavs.isNotEmpty()) {
                         item(key = "row_live") {
@@ -324,7 +324,7 @@ fun FavoritesScreen(account: Account, onDetail: OpenDetail) {
                     }
                     if ((filter == "all" || filter == "kids") && kidsVodFavs.isNotEmpty()) {
                         item(key = "row_kids_vod") {
-                            FavShelf("Films & Séries favoris · Enfants", kidsVodFavs, Kind.VOD, account, null, onDetail)
+                            FavShelf(stringResource(R.string.favs_kids_vod), kidsVodFavs, Kind.VOD, account, null, onDetail)
                         }
                     }
                     if ((filter == "all" || filter == "music") && musicLiveFavs.isNotEmpty()) {
@@ -334,7 +334,7 @@ fun FavoritesScreen(account: Account, onDetail: OpenDetail) {
                     }
                     if ((filter == "all" || filter == "music") && musicVodFavs.isNotEmpty()) {
                         item(key = "row_music_vod") {
-                            FavShelf("Concerts & Titres favoris · Musique", musicVodFavs, Kind.VOD, account, null, onDetail)
+                            FavShelf(stringResource(R.string.favs_music_vod), musicVodFavs, Kind.VOD, account, null, onDetail)
                         }
                     }
                     if ((filter == "all" || filter == "movies") && movieFavs.isNotEmpty()) {
@@ -365,36 +365,38 @@ private fun FavShelf(
     if (list.isEmpty()) return
     val ctx = LocalContext.current
     val landscape = kind == Kind.LIVE
-    Text(
-        title,
-        color = Color.White,
-        fontSize = 16.sp,
-        fontWeight = FontWeight.SemiBold,
-        modifier = Modifier.padding(bottom = 2.dp)
-    )
-    LazyRow(
-        Modifier.height(if (landscape) 112.dp else 192.dp).bleedStart(),
-        horizontalArrangement = Arrangement.spacedBy(if (landscape) 11.dp else 10.dp),
-        contentPadding = PaddingValues(horizontal = 28.dp, vertical = 7.dp)
-    ) {
-        items(list, key = { it.kind + ":" + it.id }) { f ->
-            val item = f.toItem()
-            val itemKind = when (f.kind) {
-                Kind.LIVE.key -> Kind.LIVE
-                Kind.SERIES.key -> Kind.SERIES
-                else -> Kind.VOD
-            }
-            if (landscape) {
-                LiveChannelCard(
-                    item = item,
-                    hubTag = f.hub,
-                    onFocus = if (onFocusLive != null) ({ onFocusLive(item) }) else null,
-                    onClick = { openItem(ctx, account, itemKind, item, onDetail) }
-                )
-            } else {
-                ItemCard(item, false) { openItem(ctx, account, itemKind, item, onDetail) }
+    Column(Modifier.fillMaxWidth()) {
+        Text(
+            title,
+            color = Color.White,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(bottom = 2.dp)
+        )
+        LazyRow(
+            Modifier.height(if (landscape) 118.dp else 198.dp).bleedStart(),
+            horizontalArrangement = Arrangement.spacedBy(if (landscape) 11.dp else 10.dp),
+            contentPadding = PaddingValues(horizontal = 28.dp, vertical = 10.dp)
+        ) {
+            items(list, key = { it.kind + ":" + it.id }) { f ->
+                val item = f.toItem()
+                val itemKind = when (f.kind) {
+                    Kind.LIVE.key -> Kind.LIVE
+                    Kind.SERIES.key -> Kind.SERIES
+                    else -> Kind.VOD
+                }
+                if (landscape) {
+                    LiveChannelCard(
+                        item = item,
+                        hubTag = f.hub,
+                        onFocus = if (onFocusLive != null) ({ onFocusLive(item) }) else null,
+                        onClick = { openItem(ctx, account, itemKind, item, onDetail) }
+                    )
+                } else {
+                    ItemCard(item, false, showFavBadge = false) { openItem(ctx, account, itemKind, item, onDetail) }
+                }
             }
         }
+        Spacer(Modifier.height(10.dp))
     }
-    Spacer(Modifier.height(10.dp))
 }

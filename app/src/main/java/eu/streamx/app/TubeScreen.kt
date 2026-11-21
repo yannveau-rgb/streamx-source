@@ -103,14 +103,10 @@ fun TubeScreen() {
         value = withContext(Dispatchers.IO) { TubeStore.likes(ctx).map { it.id }.toSet() }
     }
 
-    // Retour : seulement quand le focus est dans Tube (depuis la barre latérale, c'est MainShell qui gère).
+    // Retour : seulement quand une recherche ou le sélecteur de thèmes est ouvert (sinon MainShell ramène à la barre latérale).
     var inTube by remember { mutableStateOf(false) }
-    BackHandler(enabled = inTube && (query.isNotEmpty() || picking || (tab != 0 && onboarded))) {
-        when {
-            picking -> picking = false
-            query.isNotEmpty() -> query = ""
-            else -> tab = 0
-        }
+    BackHandler(enabled = inTube && (query.isNotEmpty() || picking)) {
+        if (picking) picking = false else query = ""
         refocus++
     }
 
@@ -232,10 +228,10 @@ private fun Offline(onRetry: () -> Unit) {
 
 @Composable
 private fun Shelves(shelves: List<TShelf>, liked: Set<String>, onPlay: (TVideo) -> Unit, onLike: (TVideo) -> Unit) {
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 40.dp)) {
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(top = 4.dp, bottom = 40.dp)) {
         items(shelves, key = { it.key }) { s ->
             Text(s.title, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(start = 28.dp, top = 12.dp, bottom = 6.dp))
-            LazyRow(Modifier.fillMaxWidth(), contentPadding = PaddingValues(horizontal = SX.Gutter, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            LazyRow(Modifier.fillMaxWidth(), contentPadding = PaddingValues(horizontal = SX.Gutter, vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                 items(s.videos, key = { it.id }) { v ->
                     TubeCard(v, v.id in liked, Modifier.width(236.dp), onClick = { onPlay(v) }, onLike = { onLike(v) })
                 }
@@ -261,7 +257,7 @@ private fun VideoGrid(
         }
         else -> LazyVerticalGrid(
             GridCells.Adaptive(236.dp), Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(start = 28.dp, end = 28.dp, top = 6.dp, bottom = 40.dp),
+            contentPadding = PaddingValues(start = 28.dp, end = 28.dp, top = 12.dp, bottom = 40.dp),
             horizontalArrangement = Arrangement.spacedBy(14.dp), verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             items(list, key = { it.id }) { v ->

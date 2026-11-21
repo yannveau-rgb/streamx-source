@@ -25,6 +25,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.FavoriteBorder
+import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material.icons.outlined.Tv
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -381,13 +382,14 @@ fun LiveTvScreen(account: Account, onDetail: OpenDetail) {
                 NavIconType.LIVE, stringResource(R.string.live), stringResource(R.string.live_subtitle),
                 modifier = Modifier.padding(horizontal = 28.dp),
                 // Réglage de la liste, à part des filtres.
-                trailing = { ActionChip(stringResource(R.string.cat_manage)) { managing = true } }
+                trailing = { ActionChip(stringResource(R.string.cat_manage), icon = Icons.Outlined.Tune) { managing = true } }
             )
             Spacer(Modifier.height(10.dp))
 
             // Barre de filtres thématiques + favoris + gestion des catégories
             LazyRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
                 contentPadding = PaddingValues(horizontal = 28.dp, vertical = 4.dp)
             ) {
                 item(key = "all") {
@@ -447,7 +449,7 @@ fun LiveTvScreen(account: Account, onDetail: OpenDetail) {
 
                     LazyColumn(
                         Modifier.weight(1f).fillMaxWidth(),
-                        contentPadding = PaddingValues(start = 28.dp, bottom = 14.dp)
+                        contentPadding = PaddingValues(start = 28.dp, top = 6.dp, bottom = 20.dp)
                     ) {
                         // 1. Mes chaînes favorites — Épinglées dès l'arrivée sur TV en direct
                         if (favLive.isNotEmpty() && (facet == null || facet == "favs")) {
@@ -473,9 +475,9 @@ fun LiveTvScreen(account: Account, onDetail: OpenDetail) {
                                     )
                                 }
                                 LazyRow(
-                                    Modifier.height(112.dp).bleedStart(),
+                                    Modifier.height(118.dp).bleedStart(),
                                     horizontalArrangement = Arrangement.spacedBy(11.dp),
-                                    contentPadding = PaddingValues(horizontal = 28.dp, vertical = 7.dp)
+                                    contentPadding = PaddingValues(horizontal = 28.dp, vertical = 10.dp)
                                 ) {
                                     items(favLive, key = { "fav_" + it.id }) { ch ->
                                         LiveChannelCard(
@@ -504,9 +506,9 @@ fun LiveTvScreen(account: Account, onDetail: OpenDetail) {
                                     )
                                 }
                                 LazyRow(
-                                    Modifier.height(112.dp).bleedStart(),
+                                    Modifier.height(118.dp).bleedStart(),
                                     horizontalArrangement = Arrangement.spacedBy(11.dp),
-                                    contentPadding = PaddingValues(horizontal = 28.dp, vertical = 7.dp)
+                                    contentPadding = PaddingValues(horizontal = 28.dp, vertical = 10.dp)
                                 ) {
                                     itemsIndexed(featuredFrench, key = { _, ch -> "fr_" + ch.number + "_" + ch.item.id }) { _, ch ->
                                         LiveChannelCard(
@@ -583,7 +585,7 @@ fun LiveCategoryShelf(
         )
     }
 
-    Box(Modifier.height(112.dp)) {
+    Box(Modifier.height(118.dp)) {
         val l = if (hubTag == "kids") grouped?.filter { !HubExclusions.isExcluded(it.name) } else grouped
         if (l != null) {
             if (l.isEmpty()) {
@@ -592,7 +594,7 @@ fun LiveCategoryShelf(
                 LazyRow(
                     Modifier.bleedStart(),
                     horizontalArrangement = Arrangement.spacedBy(11.dp),
-                    contentPadding = PaddingValues(horizontal = 28.dp, vertical = 7.dp)
+                    contentPadding = PaddingValues(horizontal = 28.dp, vertical = 10.dp)
                 ) {
                     items(l, key = { it.id }) { ch ->
                         LiveChannelCard(
@@ -817,7 +819,7 @@ fun LiveChannelCard(
                 Text(
                     text = cleanName,
                     color = if (cur != null) Color(0xFFB9BED6) else Color.White,
-                    fontSize = if (cur != null) 9.5.sp else 10.5.sp,
+                    fontSize = 10.5.sp,
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,

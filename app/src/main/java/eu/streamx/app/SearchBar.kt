@@ -40,6 +40,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -82,6 +84,7 @@ fun HomeSearchBar(account: Account, onOpenAll: (String) -> Unit, onDetail: OpenD
     var active by remember { mutableStateOf(false) }
     var barFocused by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf(false) }
+    val fieldReq = remember { FocusRequester() }
 
     val imeVisible = androidx.compose.foundation.layout.WindowInsets.isImeVisible
     var imeSeen by remember { mutableStateOf(false) }
@@ -139,6 +142,7 @@ fun HomeSearchBar(account: Account, onOpenAll: (String) -> Unit, onDetail: OpenD
                     keyboardActions = KeyboardActions(onSearch = { if (query.isNotBlank()) { onOpenAll(query.trim()); setQuery(""); focusManager.clearFocus() } }),
                     modifier = Modifier
                         .fillMaxWidth()
+                        .focusRequester(fieldReq)
                         .onFocusChanged { barFocused = it.isFocused; if (!it.isFocused) editing = false }
                         .onPreviewKeyEvent { ev ->
                             if (editing) {
@@ -168,6 +172,20 @@ fun HomeSearchBar(account: Account, onOpenAll: (String) -> Unit, onDetail: OpenD
                                 else -> false
                             }
                         }
+                )
+            }
+            if (query.isNotEmpty()) {
+                Text(
+                    "✕", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold,
+                    modifier = Modifier
+                        .tvFocus(CircleShape, cornerRadius = 13.dp, scale = 1.12f) {
+                            runCatching { fieldReq.requestFocus() }
+                            setQuery("")
+                            editing = false
+                            keyboard?.hide()
+                        }
+                        .clip(CircleShape)
+                        .padding(horizontal = 8.dp, vertical = 3.dp)
                 )
             }
             if (canSpeak) {
@@ -208,15 +226,23 @@ fun HomeSearchBar(account: Account, onOpenAll: (String) -> Unit, onDetail: OpenD
                     }
                 }
                 val all = RoundedCornerShape(10.dp)
+                var allFocused by remember { mutableStateOf(false) }
+                val ap = rememberFocusProgress(allFocused).value
                 Text(
-                    stringResource(R.string.search_all, query.trim()), color = SX.Lilac, fontSize = 11.5.sp,
-                    fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    stringResource(R.string.search_all, query.trim()),
+                    color = lerp(SX.Lilac, SXFocus.On, ap),
+                    fontSize = 11.5.sp,
+                    fontWeight = if (allFocused) FontWeight.SemiBold else FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .tvFocus(all, cornerRadius = 10.dp, scale = 1.02f) {
+                        .onFocusChanged { allFocused = it.isFocused }
+                        .tvFocus(all, scale = 1.0f, decorate = false) {
                             onOpenAll(query.trim()); setQuery(""); focusManager.clearFocus()
                         }
                         .clip(all)
+                        .background(lerp(Color.Transparent, SXFocus.Fill, ap))
                         .padding(horizontal = 10.dp, vertical = 9.dp)
                 )
             }

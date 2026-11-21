@@ -308,7 +308,7 @@ fun ResumeCard(w: Watch, account: Account, onDetail: OpenDetail) {
         }
         QuickActionModal(
             title = cleanTitle(w.title),
-            subtitle = stringResource(R.string.continue_watching) + "  ·  " + stringResource(R.string.minutes_left, remainingMin),
+            subtitle = stringResource(R.string.continue_watching) + "  ·  " + leftText,
             image = w.image,
             landscapeImage = false,
             accentColor = LocalNavTheme.current.ring,
@@ -478,6 +478,7 @@ fun Hero(
                     .fillMaxSize()
                     .cachedDraw(essential = true) {
                         drawRect(Brush.horizontalGradient(0f to Color(0xF50B0D19), 0.40f to Color(0xC20B0D19), 0.72f to Color(0x330B0D19), 0.92f to Color.Transparent))
+                        drawRect(Brush.verticalGradient(0f to Color(0x990B0D19), 0.36f to Color.Transparent))
                         if (lowRam) {
                             drawRect(Brush.verticalGradient(0.55f to Color.Transparent, 1f to SX.BgTop))
                         }

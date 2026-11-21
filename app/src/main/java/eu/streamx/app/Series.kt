@@ -3,6 +3,8 @@ package eu.streamx.app
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.foundation.layout.Arrangement
@@ -46,6 +48,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
@@ -201,19 +204,27 @@ fun SeriesScreen(account: Account, item: Item, onBack: () -> Unit) {
                     InfoBlock(if (data != null) InfoCache.get("series:" + item.id) else null, Modifier.padding(top = 6.dp))
                     Spacer(Modifier.height(10.dp))
                     val d = data
+                    val playFocus = remember(item.id) { FocusRequester() }
+                    val hasPlay = d?.isNotEmpty() == true
+                    LaunchedEffect(item.id, hasPlay) {
+                        if (hasPlay) {
+                            delay(50)
+                            runCatching { playFocus.requestFocus() }
+                        }
+                    }
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         if (d != null && d.isNotEmpty()) {
                             val ids = remember(d) { d.values.flatten().map { "ep:" + it.id }.toSet() }
                             val last = watching.firstOrNull { it.key in ids }
                             val found = last?.let { w -> d.entries.firstNotNullOfOrNull { (s, l) -> l.firstOrNull { "ep:" + it.id == w.key }?.let { s to it } } }
                             if (last != null && found != null) {
-                                PillButton(stringResource(R.string.resume_episode, found.first, found.second.num), Icons.Filled.PlayArrow, true) {
+                                PillButton(stringResource(R.string.resume_episode, found.first, found.second.num), Icons.Filled.PlayArrow, true, Modifier.focusRequester(playFocus)) {
                                     play(found.second, found.first, last.pos)
                                 }
                             } else {
                                 val s0 = d.keys.first()
                                 val e0 = d[s0]!!.first()
-                                PillButton(stringResource(R.string.play_episode, s0, e0.num), Icons.Filled.PlayArrow, true) { play(e0, s0, 0L) }
+                                PillButton(stringResource(R.string.play_episode, s0, e0.num), Icons.Filled.PlayArrow, true, Modifier.focusRequester(playFocus)) { play(e0, s0, 0L) }
                             }
                         }
                         ListButton(Kind.SERIES, item)
@@ -261,17 +272,18 @@ fun SeriesScreen(account: Account, item: Item, onBack: () -> Unit) {
                                     )
                                     if (w != null && w.dur > 0) {
                                         Spacer(Modifier.height(4.dp))
-                                        Box(Modifier.fillMaxWidth().height(2.5.dp).clip(RoundedCornerShape(50)).background(Color(0x33FFFFFF))) {
+                                        val fillColor = lerp(Color(0xE6FFFFFF), lerp(LocalNavTheme.current.c1, Color.Black, 0.35f), rp)
+                                        Box(Modifier.fillMaxWidth().height(2.5.dp).clip(RoundedCornerShape(50)).background(lerp(Color(0x33FFFFFF), Color(0x2E0B0D19), rp))) {
                                             Box(
                                                 Modifier
                                                     .fillMaxWidth((w.pos.toFloat() / w.dur).coerceIn(0.02f, 1f))
                                                     .fillMaxHeight()
-                                                    .background(Color(0xE6FFFFFF))
+                                                    .background(fillColor)
                                             )
                                         }
                                     }
                                 }
-                                if (key in seen) Icon(Icons.Outlined.Check, null, tint = SX.Turquoise, modifier = Modifier.size(16.dp))
+                                if (key in seen) Icon(Icons.Outlined.Check, null, tint = lerp(SX.Turquoise, Color(0xFF0B6B5C), rp), modifier = Modifier.size(16.dp))
                             }
                             Spacer(Modifier.height(6.dp))
                         }

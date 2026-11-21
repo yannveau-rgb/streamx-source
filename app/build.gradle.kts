@@ -27,8 +27,8 @@ android {
         applicationId = "eu.streamx.app"
         minSdk = 28
         targetSdk = 35
-        versionCode = 50
-        versionName = "0.10.1"
+        versionCode = 51
+        versionName = "0.10.2"
         // URL du fichier latest.json (laisser vide tant que l'hÃ©bergement n'est pas choisi : la vÃ©rification est alors dÃ©sactivÃ©e).
         buildConfigField("String", "TMDB_KEY", "\"$tmdbKey\"")
         buildConfigField("String", "DEAD_IMAGE_HOST", "\"$deadImageHost\"")
@@ -81,6 +81,7 @@ dependencies {
     // Onglet Tube : lecture de YouTube sans compte ni publicité (même bibliothèque que NewPipe).
     implementation("com.github.TeamNewPipe:NewPipeExtractor:v0.27.1")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("com.google.zxing:core:3.5.3")
     testImplementation("junit:junit:4.13.2")
 }
 

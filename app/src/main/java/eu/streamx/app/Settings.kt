@@ -9,6 +9,7 @@ import android.os.Build
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -33,8 +34,13 @@ import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -47,12 +53,18 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.addOutline
+import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import coil3.ImageLoader
 import coil3.PlatformContext
@@ -154,9 +166,15 @@ object PerfPrefs {
     }
 }
 
+private fun deviceLabel(): String {
+    val mfg = Build.MANUFACTURER.trim().replaceFirstChar { it.uppercase() }
+    val model = Build.MODEL.trim()
+    return if (mfg.isEmpty() || model.startsWith(mfg, ignoreCase = true)) model else "$mfg $model"
+}
+
 private fun supportText(c: Context, account: Account, info: AccountInfo?): String = buildString {
     append("StreamX ").append(BuildConfig.VERSION_NAME).append(" (").append(BuildConfig.VERSION_CODE).append(")\n")
-    append("Android ").append(Build.VERSION.RELEASE).append(" · ").append(Build.MANUFACTURER).append(' ').append(Build.MODEL).append('\n')
+    append("Android ").append(Build.VERSION.RELEASE).append(" · ").append(deviceLabel()).append('\n')
     append("Serveur : ").append(account.server.substringAfter("://").substringBefore("/")).append('\n')
     append("Profil : ").append(account.label.take(2)).append("***\n")
     append("Statut : ").append(info?.status ?: "?").append(" · connexions max ").append(info?.maxConnections ?: 0).append('\n')
@@ -190,10 +208,14 @@ private fun SettingRow(
         Modifier
             .fillMaxWidth()
             .onFocusChanged { within = it.hasFocus }
-            .clip(shape)
-            .background(if (within) Color(0x1FFFFFFF) else Color(0x0FFFFFFF))
-            .drawBehind { if (within) drawRect(th.c1, size = androidx.compose.ui.geometry.Size(3.dp.toPx(), size.height)) }
-            .padding(horizontal = 16.dp, vertical = 9.dp),
+            .background(if (within) Color(0x1FFFFFFF) else Color(0x0FFFFFFF), shape)
+            .drawBehind {
+                if (within) {
+                    val path = Path().apply { addOutline(shape.createOutline(size, layoutDirection, this@drawBehind)) }
+                    clipPath(path) { drawRect(th.c1, size = androidx.compose.ui.geometry.Size(3.dp.toPx(), size.height)) }
+                }
+            }
+            .padding(horizontal = 16.dp, vertical = 11.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(
@@ -232,7 +254,7 @@ private fun SettingRow(
                     text = subtitle,
                     color = SX.Muted,
                     fontSize = 10.5.sp,
-                    maxLines = 1,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
             }
@@ -262,18 +284,22 @@ private fun SettingUpdateRow() {
         Modifier
             .fillMaxWidth()
             .onFocusChanged { within = it.hasFocus }
-            .clip(shape)
             .then(
                 if (update != null) {
                     Modifier
-                        .background(th.c1.copy(alpha = 0.14f))
+                        .background(th.c1.copy(alpha = 0.14f), shape)
                         .border(1.dp, th.ring.copy(alpha = 0.45f), shape)
                 } else {
-                    Modifier.background(if (within) Color(0x1FFFFFFF) else Color(0x0FFFFFFF))
+                    Modifier.background(if (within) Color(0x1FFFFFFF) else Color(0x0FFFFFFF), shape)
                 }
             )
-            .drawBehind { if (within) drawRect(th.c1, size = androidx.compose.ui.geometry.Size(3.dp.toPx(), size.height)) }
-            .padding(horizontal = 16.dp, vertical = 9.dp),
+            .drawBehind {
+                if (within) {
+                    val path = Path().apply { addOutline(shape.createOutline(size, layoutDirection, this@drawBehind)) }
+                    clipPath(path) { drawRect(th.c1, size = androidx.compose.ui.geometry.Size(3.dp.toPx(), size.height)) }
+                }
+            }
+            .padding(horizontal = 16.dp, vertical = 11.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(
@@ -405,6 +431,7 @@ private fun SettingUpdateRow() {
 /** « 5467875780… » devient « 54••••27 » : l'identifiant ne s'affiche jamais en entier à l'écran. */
 fun maskLabel(s: String): String = if (s.length <= 4) s else s.take(2) + "••••" + s.takeLast(2)
 
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun AccountScreen(
     account: Account, profiles: List<Account>, onSwitch: (Account) -> Unit, onAddProfile: () -> Unit,
@@ -424,6 +451,10 @@ fun AccountScreen(
     var pinStep by remember { mutableStateOf("") }
     var pinFirst by remember { mutableStateOf("") }
     var pinError by remember { mutableStateOf(false) }
+    var confirmLogout by remember { mutableStateOf(false) }
+    val scrollState = rememberScrollState()
+    val firstFocus = remember { FocusRequester() }
+    LaunchedEffect(Unit) { scrollState.scrollTo(0) }
     Box(
         Modifier
             .fillMaxSize()
@@ -447,8 +478,10 @@ fun AccountScreen(
         Column(
             Modifier
                 .fillMaxSize()
-                .padding(start = 26.dp, end = 26.dp, top = 16.dp, bottom = 12.dp)
-                .verticalScroll(rememberScrollState())
+                .padding(start = 26.dp, end = 26.dp, top = 16.dp, bottom = 24.dp)
+                .verticalScroll(scrollState)
+                .focusProperties { enter = { firstFocus } }
+                .focusGroup()
         ) {
             // En-tête compact Réglages
             PageHeader(
@@ -483,13 +516,20 @@ fun AccountScreen(
                 badge = expiryShort(info),
                 badgeColor = if (account.isM3u) SX.Turquoise else SX.Gold
             ) {
-                profiles.forEach { p ->
-                    SelectChip(stringResource(R.string.profile_n, profiles.indexOf(p) + 1), p.server == account.server && p.user == account.user) {
+                profiles.forEachIndexed { idx, p ->
+                    SelectChip(
+                        stringResource(R.string.profile_n, idx + 1),
+                        p.server == account.server && p.user == account.user,
+                        modifier = if (idx == 0) Modifier.focusRequester(firstFocus) else Modifier
+                    ) {
                         if (!(p.server == account.server && p.user == account.user)) onSwitch(p)
                     }
                 }
-                ActionChip(stringResource(R.string.add_profile)) { onAddProfile() }
-                ActionChip(stringResource(R.string.remove_profile)) { onLogout() }
+                ActionChip(
+                    stringResource(R.string.add_profile),
+                    modifier = if (profiles.isEmpty()) Modifier.focusRequester(firstFocus) else Modifier
+                ) { onAddProfile() }
+                ActionChip(stringResource(R.string.remove_profile)) { confirmLogout = true }
             }
 
             Spacer(Modifier.height(7.dp))
@@ -607,9 +647,10 @@ fun AccountScreen(
                 Spacer(Modifier.height(7.dp))
             }
             // 7. Assistance & Diagnostic
+            val supportSub = deviceLabel() + if (crash != null) " · " + stringResource(R.string.crash_last, crash.orEmpty()) else ""
             SettingRow(
                 title = stringResource(R.string.set_support),
-                subtitle = Build.MANUFACTURER.replaceFirstChar { it.uppercase() } + " " + Build.MODEL + (if (crash != null) " · Dernier incident : " + crash.orEmpty() else ""),
+                subtitle = supportSub,
                 badge = "Android " + Build.VERSION.RELEASE
             ) {
                 ActionChip(stringResource(R.string.support_copy)) {
@@ -626,6 +667,30 @@ fun AccountScreen(
             }
             Spacer(Modifier.height(7.dp))
             // 6c. Mention obligatoire de la licence TMDB (tendances, affiches)
+        }
+        if (confirmLogout) {
+            val cancelFocus = remember { FocusRequester() }
+            LaunchedEffect(Unit) { delay(50); runCatching { cancelFocus.requestFocus() } }
+            Dialog(onDismissRequest = { confirmLogout = false }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+                Box(Modifier.fillMaxSize().background(Color(0xCC05060F)), contentAlignment = Alignment.Center) {
+                    Column(
+                        Modifier
+                            .width(380.dp)
+                            .glass(RoundedCornerShape(SX.RPanel), 1.1f)
+                            .background(Color(0xE60E1024))
+                            .padding(22.dp)
+                    ) {
+                        Text(stringResource(R.string.logout_confirm_title), color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                        Spacer(Modifier.height(8.dp))
+                        Text(stringResource(R.string.logout_confirm_msg, maskLabel(account.label)), color = SX.Text2, fontSize = 12.5.sp)
+                        Spacer(Modifier.height(16.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(9.dp), verticalAlignment = Alignment.CenterVertically) {
+                            PillButton(stringResource(R.string.cancel), true, Modifier.focusRequester(cancelFocus)) { confirmLogout = false }
+                            PillButton(stringResource(R.string.remove_profile), false) { confirmLogout = false; onLogout() }
+                        }
+                    }
+                }
+            }
         }
         if (pinStep.isNotEmpty()) {
             val title = stringResource(

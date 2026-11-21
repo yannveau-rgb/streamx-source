@@ -14,14 +14,19 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.outlined.QrCode2
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
@@ -46,6 +51,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -385,6 +391,93 @@ fun LoginScreen(onCancel: (() -> Unit)? = null, onSuccess: (Account, AccountInfo
     var busy by remember { mutableStateOf(false) }
     var errorText by remember { mutableStateOf<String?>(null) }
 
+    var qrUrl by remember { mutableStateOf<String?>(null) }
+    var qrReady by remember { mutableStateOf(false) }
+    var qrConsumed by remember { mutableStateOf(false) }
+    var qrGen by remember { mutableIntStateOf(0) }
+
+    fun submitXtream(srv: String, usr: String, pwd: String) {
+        if (busy || srv.isBlank() || usr.isBlank() || pwd.isBlank()) return
+        busy = true
+        errorText = null
+        val acc = Account(XtreamApi.normalize(srv), usr.trim(), pwd)
+        scope.launch {
+            val (res, i) = XtreamApi.login(acc)
+            busy = false
+            if (res == LoginResult.OK) {
+                onSuccess(acc, i)
+            } else {
+                errorText = if (res == LoginResult.NETWORK) ctx.getString(R.string.login_error_net)
+                else ctx.getString(R.string.login_error_auth)
+                if (qrConsumed) qrGen++
+            }
+        }
+    }
+
+    fun submitM3u(nameRaw: String, urlRaw: String) {
+        if (busy || urlRaw.isBlank()) return
+        busy = true
+        errorText = null
+        scope.launch {
+            val url = urlRaw.trim()
+            val extracted = tryExtractXtream(url)
+            if (extracted != null) {
+                val (res, i) = XtreamApi.login(extracted)
+                if (res == LoginResult.OK) {
+                    M3uStore.add(ctx, M3uList(nameRaw.ifBlank { extracted.user }, url))
+                    busy = false
+                    onSuccess(extracted, i)
+                    return@launch
+                }
+            }
+            val chs = parseM3u(url)
+            if (chs != null && chs.isNotEmpty()) {
+                val displayName = nameRaw.trim().ifBlank { "Playlist M3U" }
+                val acc = Account(
+                    server = "m3u://" + url.removePrefix("m3u://"),
+                    user = displayName,
+                    pass = "",
+                    name = displayName
+                )
+                M3uStore.add(ctx, M3uList(displayName, url))
+                busy = false
+                onSuccess(acc, AccountInfo(null, "Actif (Playlist M3U)", 1))
+            } else {
+                busy = false
+                errorText = ctx.getString(R.string.m3u_error)
+                if (qrConsumed) qrGen++
+            }
+        }
+    }
+
+    DisposableEffect(qrGen) {
+        qrReady = false
+        qrConsumed = false
+        val srv = QrLoginServer(
+            onReady = { u -> qrUrl = u; qrReady = true },
+            onReceived = { payload ->
+                qrConsumed = true
+                when (payload) {
+                    is QrPayload.Xtream -> {
+                        tab = 0
+                        server = payload.server
+                        user = payload.user
+                        pass = payload.pass
+                        submitXtream(payload.server, payload.user, payload.pass)
+                    }
+                    is QrPayload.M3u -> {
+                        tab = 1
+                        m3uName = payload.name
+                        m3uUrl = payload.url
+                        submitM3u(payload.name, payload.url)
+                    }
+                }
+            }
+        )
+        srv.start()
+        onDispose { srv.close() }
+    }
+
     Box(
         Modifier.fillMaxSize().cachedDraw(essential = true) {
             drawRect(Brush.verticalGradient(listOf(SX.BgTop, SX.BgBottom)))
@@ -393,8 +486,13 @@ fun LoginScreen(onCancel: (() -> Unit)? = null, onSuccess: (Account, AccountInfo
         },
         contentAlignment = Alignment.Center
     ) {
+        Row(
+            Modifier.padding(horizontal = 28.dp),
+            horizontalArrangement = Arrangement.spacedBy(24.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
         Column(
-            Modifier.width(420.dp).glass(RoundedCornerShape(20.dp), 0.9f).padding(24.dp)
+            Modifier.width(420.dp).glass(RoundedCornerShape(20.dp), 0.9f).verticalScroll(rememberScrollState()).padding(24.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 StreamXLogoIcon(Modifier.size(36.dp))
@@ -417,23 +515,7 @@ fun LoginScreen(onCancel: (() -> Unit)? = null, onSuccess: (Account, AccountInfo
                 PillButton(
                     if (busy) stringResource(R.string.logging_in) else stringResource(R.string.login_button),
                     true, Modifier.fillMaxWidth()
-                ) {
-                            if (!busy && server.isNotBlank() && user.isNotBlank() && pass.isNotBlank()) {
-                                busy = true
-                                errorText = null
-                                val acc = Account(XtreamApi.normalize(server), user.trim(), pass)
-                                scope.launch {
-                                    val (res, i) = XtreamApi.login(acc)
-                                    busy = false
-                                    if (res == LoginResult.OK) {
-                                        onSuccess(acc, i)
-                                    } else {
-                                        errorText = if (res == LoginResult.NETWORK) "Serveur injoignable. Vérifie l'adresse et ta connexion."
-                                        else "Identifiants refusés par le serveur."
-                                    }
-                                }
-                            }
-                }
+                ) { submitXtream(server, user, pass) }
             } else {
                 if (savedLists.isNotEmpty()) {
                     Text("Playlist enregistrée sur cette télé :", color = SX.VioletLight, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(bottom = 6.dp))
@@ -490,41 +572,7 @@ fun LoginScreen(onCancel: (() -> Unit)? = null, onSuccess: (Account, AccountInfo
                 PillButton(
                     if (busy) "Chargement de la playlist..." else "Charger la playlist",
                     true, Modifier.fillMaxWidth()
-                ) {
-                            if (!busy && m3uUrl.isNotBlank()) {
-                                busy = true
-                                errorText = null
-                                scope.launch {
-                                    val url = m3uUrl.trim()
-                                    val extracted = tryExtractXtream(url)
-                                    if (extracted != null) {
-                                        val (res, i) = XtreamApi.login(extracted)
-                                        if (res == LoginResult.OK) {
-                                            M3uStore.add(ctx, M3uList(m3uName.ifBlank { extracted.user }, url))
-                                            busy = false
-                                            onSuccess(extracted, i)
-                                            return@launch
-                                        }
-                                    }
-                                    val chs = parseM3u(url)
-                                    if (chs != null && chs.isNotEmpty()) {
-                                        val displayName = m3uName.trim().ifBlank { "Playlist M3U" }
-                                        val acc = Account(
-                                            server = "m3u://" + url.removePrefix("m3u://"),
-                                            user = displayName,
-                                            pass = "",
-                                            name = displayName
-                                        )
-                                        M3uStore.add(ctx, M3uList(displayName, url))
-                                        busy = false
-                                        onSuccess(acc, AccountInfo(null, "Actif (Playlist M3U)", 1))
-                                    } else {
-                                        busy = false
-                                        errorText = "Impossible de lire la playlist M3U. Vérifie l'adresse URL."
-                                    }
-                                }
-                            }
-                }
+                ) { submitM3u(m3uName, m3uUrl) }
             }
 
             if (onCancel != null) {
@@ -535,6 +583,55 @@ fun LoginScreen(onCancel: (() -> Unit)? = null, onSuccess: (Account, AccountInfo
             if (errorText != null) {
                 Text(errorText!!, color = Color(0xFFFF6B7A), fontSize = 11.sp, modifier = Modifier.padding(top = 10.dp))
             }
+        }
+
+        Column(
+            Modifier
+                .width(280.dp)
+                .glass(RoundedCornerShape(20.dp), 0.9f)
+                .padding(22.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Outlined.QrCode2, null, tint = SX.Turquoise, modifier = Modifier.size(20.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(R.string.qr_title), color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+            }
+            Spacer(Modifier.height(6.dp))
+            Text(
+                stringResource(R.string.qr_sub),
+                color = SX.Muted, fontSize = 11.5.sp, textAlign = TextAlign.Center, lineHeight = 16.sp
+            )
+            Spacer(Modifier.height(14.dp))
+            val u = qrUrl
+            when {
+                qrConsumed && busy -> {
+                    Box(Modifier.size(156.dp), contentAlignment = Alignment.Center) {
+                        Text(
+                            stringResource(R.string.qr_received),
+                            color = SX.Turquoise, fontSize = 12.sp, fontWeight = FontWeight.Medium, textAlign = TextAlign.Center
+                        )
+                    }
+                }
+                u != null -> {
+                    QrCodeImage(u, size = 156.dp)
+                    Spacer(Modifier.height(10.dp))
+                    Text(
+                        u,
+                        color = SX.Muted, fontSize = 10.5.sp, textAlign = TextAlign.Center,
+                        maxLines = 3, overflow = TextOverflow.Ellipsis
+                    )
+                }
+                qrReady -> {
+                    Text(
+                        stringResource(R.string.qr_no_wifi),
+                        color = SX.Muted, fontSize = 11.5.sp, textAlign = TextAlign.Center
+                    )
+                    Spacer(Modifier.height(10.dp))
+                    ActionChip(stringResource(R.string.retry)) { qrGen++ }
+                }
+            }
+        }
         }
     }
 }

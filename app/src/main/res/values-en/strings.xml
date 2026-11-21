@@ -12,7 +12,7 @@
     <string name="badge_series">Series</string>
     <string name="badge_movie">Movie</string>
     <string name="play">Play</string>
-    <string name="my_list">My list</string>
+    <string name="my_list">Favorites</string>
     <string name="continue_watching">Continue watching</string>
     <string name="trending">Trending now</string>
     <string name="channels_hint">channels</string>
@@ -84,13 +84,13 @@
     <string name="expired_on">Expired on %1$s</string>
     <string name="notif_expired_title">Subscription expired</string>
     <string name="catalog_error">Couldn\'t load the catalogue. Restart the app to try again.</string>
-    <string name="in_my_list">In my list</string>
+    <string name="in_my_list">In favorites</string>
     <string name="restart">Start over</string>
     <string name="resume_at">Resume at %1$d min</string>
     <string name="similar">In the same category</string>
     <string name="resume_episode">Resume S%1$d E%2$d</string>
     <string name="play_episode">Play S%1$d E%2$d</string>
-    <string name="favs_empty">Your list is empty. Add a movie, series or channel with "My list".</string>
+    <string name="favs_empty">Your favorites are empty. Add a movie, series or channel with “Favorites”.</string>
     <string name="favs_movies">My movies</string>
     <string name="favs_series">My series</string>
     <string name="favs_live">My channels</string>
@@ -146,6 +146,8 @@
     <string name="set_profile">Profile</string>
     <string name="add_profile">Add a profile</string>
     <string name="remove_profile">Remove this profile</string>
+    <string name="logout_confirm_title">Sign out of this profile?</string>
+    <string name="logout_confirm_msg">You’ll need to enter the credentials for “%1$s” again to sign back in.</string>
     <string name="set_languages">Languages</string>
     <string name="set_support">Support</string>
     <string name="support_copy">Copy troubleshooting info</string>
@@ -186,7 +188,9 @@
     <string name="live_facet_news">News</string>
     <string name="favs_subtitle">Your favorite TV channels, Kids, Music, movies &amp; series sorted</string>
     <string name="favs_kids_live">My favorite channels · Kids</string>
+    <string name="favs_kids_vod">Favorite movies &amp; series · Kids</string>
     <string name="favs_music_live">My favorite channels · Music</string>
+    <string name="favs_music_vod">Favorite concerts &amp; titles · Music</string>
     <string name="epg_fav_hint">Hold OK: Options &amp; Favorites</string>
     <string name="epg_fav_on">♥ In favorites (Hold OK for options)</string>
     <string name="active_short">Until %1$s</string>
@@ -241,6 +245,7 @@
     <string name="pl_normal">Normal</string>
     <string name="pl_track">Track %1$d</string>
     <string name="pl_none">No track available</string>
+    <string name="pl_stereo">stereo</string>
     <string name="pl_left">%1$s left</string>    <string name="tmdb_credit_title">Trending data</string>
     <string name="tmdb_credit">This product uses the TMDB API but is not endorsed or certified by TMDB.</string>
 
@@ -271,4 +276,8 @@
     <string name="voice_none">I didn’t hear anything. Try again.</string>
     <string name="voice_unavailable">Voice recognition isn’t available right now.</string>
     <string name="voice_cancel">Cancel</string>
+    <string name="qr_title">Sign in from your phone</string>
+    <string name="qr_sub">Scan with your phone (same Wi-Fi) to send your login details without typing on the remote.</string>
+    <string name="qr_no_wifi">Connect your TV to Wi-Fi to show the QR code.</string>
+    <string name="qr_received">Details received, signing in…</string>
 </resources>

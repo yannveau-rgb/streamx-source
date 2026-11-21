@@ -18,6 +18,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -88,9 +89,9 @@ fun PinPrompt(title: String, error: Boolean, onSubmit: (String) -> Unit, onCance
                 Spacer(Modifier.height(10.dp))
                 LoginField(stringResource(R.string.pin_label), pin, { pin = it.filter { c -> c.isDigit() }.take(8) }, password = true)
                 if (error) Text(stringResource(R.string.pin_wrong), color = SX.Danger, fontSize = 12.sp, modifier = Modifier.padding(bottom = 8.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(9.dp), verticalAlignment = Alignment.CenterVertically) {
                     PillButton(stringResource(R.string.pin_ok), true) { if (pin.length >= 4) onSubmit(pin) }
-                    ActionChip(stringResource(R.string.cancel)) { onCancel() }
+                    PillButton(stringResource(R.string.cancel), false) { onCancel() }
                 }
             }
         }
@@ -115,20 +116,27 @@ fun KidsShell(account: Account) {
         delay(600)
         runCatching { focus.moveFocus(FocusDirection.Enter) }
     }
-    Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(SX.BgTop, SX.BgBottom)))) {
-        val d = detail
-        when {
-            d != null && d.first == Kind.SERIES -> SeriesScreen(account, d.second) { detail = null }
-            d != null -> MovieScreen(account, d.second, { detail = null }, open)
-            else -> ThemedHubScreen(HubTheme.KIDS, account, open)
-        }
-        Box(Modifier.align(Alignment.TopEnd).padding(top = 18.dp, end = 28.dp)) {
-            RoundGlassButton(Icons.Outlined.Lock, false, { wrong = false; asking = true }, description = stringResource(R.string.kids_exit))
-        }
-        if (asking) {
-            PinPrompt(stringResource(R.string.kids_exit_title), wrong, onSubmit = { p ->
-                if (ParentalStore.check(ctx, p)) { asking = false; ParentalStore.setKids(ctx, false) } else wrong = true
-            }, onCancel = { asking = false })
+    val sectionType = when (detail?.first) {
+        Kind.SERIES -> NavIconType.SERIES
+        Kind.VOD -> NavIconType.MOVIES
+        else -> NavIconType.KIDS
+    }
+    CompositionLocalProvider(LocalNavTheme provides navThemeOf(sectionType)) {
+        Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(SX.BgTop, SX.BgBottom)))) {
+            val d = detail
+            when {
+                d != null && d.first == Kind.SERIES -> SeriesScreen(account, d.second) { detail = null }
+                d != null -> MovieScreen(account, d.second, { detail = null }, open)
+                else -> ThemedHubScreen(HubTheme.KIDS, account, open)
+            }
+            Box(Modifier.align(Alignment.TopEnd).padding(top = 18.dp, end = 28.dp)) {
+                RoundGlassButton(Icons.Outlined.Lock, false, { wrong = false; asking = true }, description = stringResource(R.string.kids_exit))
+            }
+            if (asking) {
+                PinPrompt(stringResource(R.string.kids_exit_title), wrong, onSubmit = { p ->
+                    if (ParentalStore.check(ctx, p)) { asking = false; ParentalStore.setKids(ctx, false) } else wrong = true
+                }, onCancel = { asking = false })
+            }
         }
     }
 }

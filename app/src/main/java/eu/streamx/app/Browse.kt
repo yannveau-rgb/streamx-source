@@ -195,8 +195,11 @@ fun BrowseScreen(kind: Kind, account: Account, title: Int, onDetail: OpenDetail)
             }
         }
         // Univers (Marvel, Star Wars, Disney, Harry Potter…) reconnus par le titre : pastilles et rangées.
-        val univRows by produceState(emptyList<Pair<PlatformInfo, List<Entry>>>(), kind, cv, hidden) {
-            value = if (!netflix) emptyList() else withContext(Dispatchers.Default) { Franchises.rowsFor(kind, hidden) }
+        val initialUniv = remember(kind, cv, hidden) { if (netflix) Franchises.cached(kind, hidden) ?: emptyList() else emptyList() }
+        val univRows by produceState(initialUniv, kind, cv, hidden) {
+            if (!netflix) { value = emptyList(); return@produceState }
+            Franchises.cached(kind, hidden)?.let { value = it; return@produceState }
+            value = withContext(Dispatchers.Default) { Franchises.rowsFor(kind, hidden) }
         }
         val genreFacets = remember(facets) { facets.filter { it.res != 0 } }
         val platFacets = remember(facets) { facets.filter { it.res == 0 } }
@@ -205,6 +208,7 @@ fun BrowseScreen(kind: Kind, account: Account, title: Int, onDetail: OpenDetail)
         if (netflix) {
             LazyRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
                 contentPadding = PaddingValues(horizontal = 28.dp, vertical = 4.dp)
             ) {
                 // Trois groupes au lieu d'une longue file de pastilles : on ouvre un groupe, ses choix s'affichent sur la ligne du dessous.
@@ -287,12 +291,19 @@ fun BrowseScreen(kind: Kind, account: Account, title: Int, onDetail: OpenDetail)
                                 fontWeight = FontWeight.SemiBold,
                                 modifier = Modifier.padding(bottom = 2.dp)
                             )
+                            val fill = remember(resume, recent) {
+                                if (resume.size >= 4) emptyList() else {
+                                    val have = resume.mapTo(HashSet()) { cleanTitle(it.title.substringBefore(" · ").trim()).lowercase() }
+                                    recent.filter { it.image != null && cleanTitle(it.name).lowercase() !in have }.take(4 - resume.size)
+                                }
+                            }
                             LazyRow(
                                 Modifier.bleedStart(),
                                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                                 contentPadding = PaddingValues(horizontal = 28.dp, vertical = 7.dp)
                             ) {
                                 items(resume, key = { it.key }) { w -> ResumeCard(w, account, onDetail) }
+                                items(fill, key = { "fill_" + it.id }) { e -> SuggestCard(e.toItem()) { open(e.toItem()) } }
                             }
                             Spacer(Modifier.height(10.dp))
                         }
@@ -368,9 +379,9 @@ fun EntryShelf(
     )
     RowKey("e:$title") {
         LazyRow(
-            Modifier.height(if (landscape) 112.dp else 192.dp).bleedStart(),
+            Modifier.height(if (landscape) 118.dp else 198.dp).bleedStart(),
             horizontalArrangement = Arrangement.spacedBy(if (landscape) 11.dp else 10.dp),
-            contentPadding = PaddingValues(horizontal = 28.dp, vertical = 7.dp)
+            contentPadding = PaddingValues(horizontal = 28.dp, vertical = 10.dp)
         ) {
             items(entries, key = { it.id }) { e ->
                 val item = e.toItem()
@@ -404,7 +415,7 @@ fun Shelf(kind: Kind, account: Account, cat: Category, onFocusItem: ((Item) -> U
         cat.name, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold,
         maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(bottom = 2.dp, end = 28.dp)
     )
-    Box(Modifier.height(192.dp)) {
+    Box(Modifier.height(198.dp)) {
         val l = data
         if (l != null) {
             if (l.isEmpty()) {
@@ -414,7 +425,7 @@ fun Shelf(kind: Kind, account: Account, cat: Category, onFocusItem: ((Item) -> U
                     LazyRow(
                         Modifier.bleedStart(),
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        contentPadding = PaddingValues(horizontal = 28.dp, vertical = 7.dp)
+                        contentPadding = PaddingValues(horizontal = 28.dp, vertical = 10.dp)
                     ) {
                         items(l, key = { it.id }) { ItemCard(it, landscape, if (onFocusItem != null) ({ onFocusItem(it) }) else null) { onOpen(it) } }
                     }
@@ -428,7 +439,7 @@ fun Shelf(kind: Kind, account: Account, cat: Category, onFocusItem: ((Item) -> U
 }
 
 @Composable
-fun ItemCard(item: Item, landscape: Boolean, onFocus: (() -> Unit)? = null, onClick: () -> Unit) {
+fun ItemCard(item: Item, landscape: Boolean, onFocus: (() -> Unit)? = null, showFavBadge: Boolean = true, onClick: () -> Unit) {
     if (landscape) {
         LiveChannelCard(item = item, onFocus = onFocus, onClick = onClick)
         return
@@ -525,7 +536,7 @@ fun ItemCard(item: Item, landscape: Boolean, onFocus: (() -> Unit)? = null, onCl
                 .background(Brush.verticalGradient(0.45f to Color.Transparent, 1f to Color(0xF2060710)))
         )
         // Badge Favori ♥ en haut à gauche
-        if (isFav) FavBadge(Modifier.align(Alignment.TopStart).padding(6.dp))
+        if (isFav && showFavBadge) FavBadge(Modifier.align(Alignment.TopStart).padding(6.dp))
         // Note en haut à droite des affiches (films et séries).
         // (affichée seulement sur la carte focalisée)
         if (item.rating >= 1f && focused) {
