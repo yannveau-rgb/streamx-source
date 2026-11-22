@@ -25,6 +25,8 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ThumbUp
 import androidx.compose.material.icons.outlined.SmartDisplay
@@ -315,7 +317,7 @@ private fun Badge(text: String, modifier: Modifier, brush: Brush?) {
 private fun InterestPicker(onDone: (Set<String>) -> Unit) {
     val ctx = LocalContext.current
     var chosen by remember { mutableStateOf(TubeStore.interests(ctx)) }
-    Column(Modifier.fillMaxSize().padding(horizontal = 28.dp, vertical = 8.dp)) {
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 28.dp, vertical = 8.dp)) {
         Text(stringResource(R.string.tube_pick_title), color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
         Text(stringResource(R.string.tube_pick_sub), color = SX.Muted, fontSize = 12.sp, modifier = Modifier.padding(top = 2.dp, bottom = 14.dp))
         FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {

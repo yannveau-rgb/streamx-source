@@ -161,14 +161,10 @@ fun BrowseScreen(kind: Kind, account: Account, title: Int, onDetail: OpenDetail)
                 Kind.LIVE -> NavIconType.LIVE
             },
             stringResource(title),
-            modifier = Modifier.padding(horizontal = 28.dp)
+            modifier = Modifier.padding(horizontal = 28.dp),
+            trailing = { ActionChip(stringResource(R.string.cat_manage), icon = Icons.Outlined.Tune) { managing = true } }
         )
-        Spacer(Modifier.height(12.dp))
-        // TV en direct : « Gérer » sous le titre, à gauche
-        if (!netflix) {
-            Row(Modifier.padding(start = 28.dp)) { ActionChip(stringResource(R.string.cat_manage)) { managing = true } }
-            Spacer(Modifier.height(10.dp))
-        }
+        Spacer(Modifier.height(10.dp))
         val list = remember(cats, hidden) { cats?.filter { it.id !in hidden } }
         val norm = remember(list) { list?.associate { it.id to normalize(it.name) } ?: emptyMap() }
         val facets = remember(list) {
@@ -222,8 +218,6 @@ fun BrowseScreen(kind: Kind, account: Account, title: Int, onDetail: OpenDetail)
                 if (univRows.isNotEmpty()) item(key = "g_univ") {
                     SelectChip(stringResource(R.string.hub_universes), group == "univ") { group = if (group == "univ") null else "univ" }
                 }
-                item(key = "sep") { Box(Modifier.padding(horizontal = 4.dp).width(1.dp).height(20.dp).background(Color(0x26FFFFFF))) }
-                item(key = "manage") { ActionChip(stringResource(R.string.cat_manage), icon = Icons.Outlined.Tune) { managing = true } }
             }
             if (group != null) {
                 LazyRow(

@@ -285,7 +285,7 @@ fun ActionChip(
 }
 
 @Composable
-fun CategoryRow(name: String, on: Boolean, onToggle: () -> Unit) {
+fun CategoryRow(name: String, on: Boolean, badge: String? = null, onToggle: () -> Unit) {
     val shape = RoundedCornerShape(SX.RTile)
     var focused by remember { mutableStateOf(false) }
     val p = rememberFocusProgress(focused).value
@@ -303,6 +303,17 @@ fun CategoryRow(name: String, on: Boolean, onToggle: () -> Unit) {
             name, color = lerp(if (on) Color.White else SX.Muted, SXFocus.On, p), fontSize = 13.sp, maxLines = 1,
             overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f)
         )
+        if (badge != null) {
+            Spacer(Modifier.width(10.dp))
+            Box(
+                Modifier
+                    .clip(RoundedCornerShape(50))
+                    .background(lerp(Color(0x1CFFFFFF), Color(0x1A0B0D19), p))
+                    .padding(horizontal = 8.dp, vertical = 2.dp)
+            ) {
+                Text(badge, color = lerp(SX.Text2, SXFocus.On, p), fontSize = 10.5.sp, fontWeight = FontWeight.SemiBold)
+            }
+        }
         Spacer(Modifier.width(12.dp))
         Box(
             Modifier
@@ -313,6 +324,198 @@ fun CategoryRow(name: String, on: Boolean, onToggle: () -> Unit) {
             contentAlignment = if (on) Alignment.CenterEnd else Alignment.CenterStart
         ) {
             Box(Modifier.padding(2.dp).size(16.dp).clip(CircleShape).background(Color.White))
+        }
+    }
+}
+
+private class HubCat(val kind: Kind, val cat: Category, val tagRes: Int)
+
+/** Gestion des catégories d'un univers (Enfants ou Musique) : ne montre que les catégories de cet univers (Chaînes, Films, Séries). */
+@Composable
+fun HubCategoriesScreen(theme: HubTheme, account: Account, initialFilter: String = "all", onDone: () -> Unit) {
+    val ctx = LocalContext.current
+    val cv = Catalog.version
+    var catsLive by remember(account, cv) { mutableStateOf(Catalog.categoriesOf(Kind.LIVE)) }
+    var catsVod by remember(account, cv) { mutableStateOf(Catalog.categoriesOf(Kind.VOD)) }
+    var catsSeries by remember(account, cv) { mutableStateOf(Catalog.categoriesOf(Kind.SERIES)) }
+    var failed by remember(account) { mutableStateOf(false) }
+
+    LaunchedEffect(account) {
+        if (catsLive == null) catsLive = Catalog.ensureCategories(account, ctx.cacheDir, Kind.LIVE)
+        if (catsVod == null) catsVod = Catalog.ensureCategories(account, ctx.cacheDir, Kind.VOD)
+        if (catsSeries == null) catsSeries = Catalog.ensureCategories(account, ctx.cacheDir, Kind.SERIES)
+        if (catsLive == null && catsVod == null && catsSeries == null) failed = true
+    }
+
+    var hiddenLive by remember(theme) { mutableStateOf(HiddenStore.load(ctx, Kind.LIVE)) }
+    var hiddenVod by remember(theme) { mutableStateOf(HiddenStore.load(ctx, Kind.VOD)) }
+    var hiddenSeries by remember(theme) { mutableStateOf(HiddenStore.load(ctx, Kind.SERIES)) }
+
+    fun hiddenOf(k: Kind): Set<String> = when (k) {
+        Kind.LIVE -> hiddenLive
+        Kind.VOD -> hiddenVod
+        Kind.SERIES -> hiddenSeries
+    }
+
+    fun setHidden(k: Kind, ids: Set<String>) {
+        when (k) {
+            Kind.LIVE -> hiddenLive = ids
+            Kind.VOD -> hiddenVod = ids
+            Kind.SERIES -> hiddenSeries = ids
+        }
+        HiddenStore.save(ctx, k, ids)
+    }
+
+    fun applyBulk(targets: List<HubCat>, show: (HubCat) -> Boolean) {
+        for (k in Kind.entries) {
+            val sub = targets.filter { it.kind == k }
+            if (sub.isEmpty()) continue
+            val next = hiddenOf(k).toMutableSet()
+            for (item in sub) {
+                if (show(item)) next.remove(item.cat.id) else next.add(item.cat.id)
+            }
+            setHidden(k, next)
+        }
+    }
+
+    val liveItems = remember(catsLive, theme) {
+        catsLive.orEmpty().filter { HubMatcher.categoryMode(theme, Kind.LIVE, it.name) > 0 }
+            .map { HubCat(Kind.LIVE, it, R.string.badge_live) }
+    }
+    val vodItems = remember(catsVod, theme) {
+        catsVod.orEmpty().filter { HubMatcher.categoryMode(theme, Kind.VOD, it.name) > 0 }
+            .map { HubCat(Kind.VOD, it, R.string.badge_movie) }
+    }
+    val seriesItems = remember(catsSeries, theme) {
+        catsSeries.orEmpty().filter { HubMatcher.categoryMode(theme, Kind.SERIES, it.name) > 0 }
+            .map { HubCat(Kind.SERIES, it, R.string.badge_series) }
+    }
+    val allItems = remember(liveItems, vodItems, seriesItems) { liveItems + vodItems + seriesItems }
+
+    var tab by remember(theme, initialFilter) {
+        mutableStateOf(
+            when (initialFilter) {
+                "live" -> if (liveItems.isNotEmpty()) "live" else "all"
+                "vod" -> if (vodItems.isNotEmpty()) "vod" else "all"
+                "series" -> if (seriesItems.isNotEmpty()) "series" else "all"
+                else -> "all"
+            }
+        )
+    }
+    var query by remember(theme) { mutableStateOf("") }
+
+    val activeItems = when (tab) {
+        "live" -> liveItems
+        "vod" -> vodItems
+        "series" -> seriesItems
+        else -> allItems
+    }
+    val ready = catsLive != null || catsVod != null || catsSeries != null
+
+    Column(Modifier.fillMaxSize().padding(start = 28.dp, end = 28.dp, top = 24.dp)) {
+        PageHeader(
+            if (theme == HubTheme.KIDS) NavIconType.KIDS else NavIconType.MUSIC,
+            stringResource(if (theme == HubTheme.KIDS) R.string.nav_kids else R.string.nav_music),
+            if (ready) stringResource(R.string.cat_visible, activeItems.count { it.cat.id !in hiddenOf(it.kind) }, activeItems.size) else null
+        )
+        Spacer(Modifier.height(10.dp))
+        if (ready) {
+            val frLive = remember(catsLive, cv) { catsLive?.let { CategoryRules.frenchIds(Kind.LIVE, it) } ?: emptySet() }
+            val frVod = remember(catsVod, cv) { catsVod?.let { CategoryRules.frenchIds(Kind.VOD, it) } ?: emptySet() }
+            val frSeries = remember(catsSeries, cv) { catsSeries?.let { CategoryRules.frenchIds(Kind.SERIES, it) } ?: emptySet() }
+            val firstFocus = remember { FocusRequester() }
+            LaunchedEffect(Unit) {
+                delay(40)
+                runCatching { firstFocus.requestFocus() }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                ActionChip(stringResource(R.string.cat_done), Modifier.focusRequester(firstFocus)) { onDone() }
+                if (activeItems.isNotEmpty()) {
+                    ActionChip(stringResource(R.string.cat_fr_only)) {
+                        applyBulk(activeItems) { item ->
+                            val frSet = when (item.kind) { Kind.LIVE -> frLive; Kind.VOD -> frVod; Kind.SERIES -> frSeries }
+                            item.cat.id in frSet
+                        }
+                    }
+                    ActionChip(stringResource(R.string.cat_show_all)) {
+                        applyBulk(activeItems) { true }
+                    }
+                }
+            }
+            Spacer(Modifier.height(10.dp))
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(vertical = 3.dp)) {
+                item(key = "all") {
+                    SelectChip(stringResource(R.string.facet_all) + " (${allItems.size})", tab == "all") { tab = "all" }
+                }
+                if (liveItems.isNotEmpty()) {
+                    item(key = "live") {
+                        SelectChip(
+                            stringResource(if (theme == HubTheme.KIDS) R.string.hub_kids_live else R.string.hub_music_live) + " (${liveItems.size})",
+                            tab == "live"
+                        ) { tab = "live" }
+                    }
+                }
+                if (vodItems.isNotEmpty()) {
+                    item(key = "vod") {
+                        SelectChip(
+                            stringResource(if (theme == HubTheme.KIDS) R.string.movies else R.string.hub_music_vod) + " (${vodItems.size})",
+                            tab == "vod"
+                        ) { tab = "vod" }
+                    }
+                }
+                if (seriesItems.isNotEmpty()) {
+                    item(key = "series") {
+                        SelectChip(stringResource(R.string.series) + " (${seriesItems.size})", tab == "series") { tab = "series" }
+                    }
+                }
+            }
+            Spacer(Modifier.height(10.dp))
+            val shown = remember(activeItems, query) {
+                if (query.isBlank()) activeItems else {
+                    val q = normalize(query.trim())
+                    activeItems.filter { normalize(it.cat.name).contains(q) }
+                }
+            }
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                GlassInputBox(
+                    value = query,
+                    onValueChange = { query = it },
+                    hint = stringResource(R.string.cat_search_hint),
+                    shape = RoundedCornerShape(50),
+                    fontSizeSp = 11.5f,
+                    horizontalPadding = 16.dp,
+                    verticalPadding = 8.dp,
+                    modifier = Modifier.width(260.dp)
+                )
+                if (query.isNotBlank() && shown.isNotEmpty()) {
+                    ActionChip(stringResource(R.string.cat_show_list)) { applyBulk(shown) { true } }
+                    ActionChip(stringResource(R.string.cat_hide_list)) { applyBulk(shown) { false } }
+                }
+            }
+            Spacer(Modifier.height(10.dp))
+            if (shown.isEmpty()) {
+                Text(stringResource(R.string.search_empty), color = SX.Muted, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
+            } else {
+                LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 20.dp)) {
+                    items(shown, key = { it.kind.key + ":" + it.cat.id }) { item ->
+                        val h = hiddenOf(item.kind)
+                        val on = item.cat.id !in h
+                        CategoryRow(
+                            name = item.cat.name,
+                            on = on,
+                            badge = if (tab == "all") stringResource(item.tagRes) else null
+                        ) {
+                            setHidden(item.kind, if (on) h + item.cat.id else h - item.cat.id)
+                        }
+                        Spacer(Modifier.height(6.dp))
+                    }
+                }
+            }
+        } else {
+            Text(
+                stringResource(if (failed) R.string.cat_error else R.string.cat_loading),
+                color = SX.Muted, fontSize = 13.sp, modifier = Modifier.padding(top = 12.dp)
+            )
         }
     }
 }

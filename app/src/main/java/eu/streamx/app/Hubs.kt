@@ -252,16 +252,11 @@ fun ThemedHubScreen(theme: HubTheme, account: Account, onDetail: OpenDetail) {
     val hiddenVod = remember(hv) { HiddenStore.load(ctx, Kind.VOD) }
     val hiddenSeries = remember(hv) { HiddenStore.load(ctx, Kind.SERIES) }
 
-    var managingKind by remember(theme) { mutableStateOf<Kind?>(null) }
-    if (managingKind != null) {
-        val k = managingKind!!
-        BackHandler { managingKind = null }
-        val titleRes = when (k) {
-            Kind.LIVE -> R.string.live
-            Kind.VOD -> R.string.movies
-            Kind.SERIES -> R.string.series
-        }
-        CategoriesScreen(k, account, titleRes) { managingKind = null }
+    var filter by androidx.compose.runtime.saveable.rememberSaveable(theme) { mutableStateOf("all") }
+    var managing by remember(theme) { mutableStateOf(false) }
+    if (managing) {
+        BackHandler { managing = false }
+        HubCategoriesScreen(theme, account, filter) { managing = false }
         return
     }
 
@@ -316,7 +311,6 @@ fun ThemedHubScreen(theme: HubTheme, account: Account, onDetail: OpenDetail) {
             .map { it.toItem() }
     }
 
-    var filter by androidx.compose.runtime.saveable.rememberSaveable(theme) { mutableStateOf("all") }
     var focusedLive by remember(theme) { mutableStateOf<Item?>(null) }
     // Le programme en cours s'affiche sur la vignette de la chaîne survolée (plus de barre en bas).
     val clearLive: (Item) -> Unit = { focusedLive = null }
@@ -364,9 +358,10 @@ fun ThemedHubScreen(theme: HubTheme, account: Account, onDetail: OpenDetail) {
                 if (theme == HubTheme.KIDS) NavIconType.KIDS else NavIconType.MUSIC,
                 stringResource(if (theme == HubTheme.KIDS) R.string.nav_kids else R.string.nav_music),
                 stringResource(if (theme == HubTheme.KIDS) R.string.hub_kids_sub else R.string.hub_music_sub),
-                modifier = Modifier.padding(horizontal = 28.dp)
+                modifier = Modifier.padding(horizontal = 28.dp),
+                trailing = { ActionChip(stringResource(R.string.cat_manage), icon = Icons.Outlined.Tune) { managing = true } }
             )
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(10.dp))
 
             // Pastilles de filtrage + favoris rapides
             LazyRow(
@@ -407,16 +402,6 @@ fun ThemedHubScreen(theme: HubTheme, account: Account, onDetail: OpenDetail) {
                 if (hasSeries) {
                     item(key = "series") {
                         SelectChip(stringResource(R.string.series), filter == "series") { filter = "series" }
-                    }
-                }
-                item(key = "sep") { Box(Modifier.padding(horizontal = 4.dp).width(1.dp).height(20.dp).background(Color(0x26FFFFFF))) }
-                item(key = "manage_categories") {
-                    ActionChip(stringResource(R.string.cat_manage), icon = Icons.Outlined.Tune) {
-                        managingKind = when (filter) {
-                            "vod" -> Kind.VOD
-                            "series" -> Kind.SERIES
-                            else -> Kind.LIVE
-                        }
                     }
                 }
                 val ch = focusedLive

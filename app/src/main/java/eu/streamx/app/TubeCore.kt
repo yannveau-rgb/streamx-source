@@ -64,7 +64,16 @@ class TShelf(val key: String, val title: String, val videos: List<TVideo>)
 
 /** Comme runCatching, mais laisse passer l'annulation d'une coroutine (sinon une page annulée écrase la page suivante). */
 suspend fun <T> tubeSafe(default: T, block: suspend () -> T): T =
-    try { block() } catch (e: CancellationException) { throw e } catch (e: Exception) { default }
+    try {
+        block()
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: VirtualMachineError) {
+        throw e
+    } catch (t: Throwable) {
+        android.util.Log.w("StreamXTube", "tubeSafe: ${t.javaClass.simpleName}: ${t.message}")
+        default
+    }
 
 /** Les centres d'intérêt à cocher au premier lancement : chacun alimente une étagère de l'accueil. */
 class TInterest(val key: String, val fr: String, val en: String, val qFr: String, val qEn: String) {
@@ -72,7 +81,11 @@ class TInterest(val key: String, val fr: String, val en: String, val qFr: String
     fun query(c: Context) = if (isFrench(c)) qFr else qEn
 }
 
-private fun isFrench(c: Context) = c.resources.configuration.locales[0].language == "fr"
+private fun isFrench(c: Context): Boolean {
+    val locales = c.resources.configuration.locales
+    val lang = if (locales.isEmpty) Locale.getDefault().language else locales[0].language
+    return lang == "fr"
+}
 
 object TubeInterests {
     val all = listOf(

@@ -27,8 +27,8 @@ android {
         applicationId = "eu.streamx.app"
         minSdk = 28
         targetSdk = 35
-        versionCode = 51
-        versionName = "0.10.2"
+        versionCode = 52
+        versionName = "0.10.3"
         // URL du fichier latest.json (laisser vide tant que l'hÃ©bergement n'est pas choisi : la vÃ©rification est alors dÃ©sactivÃ©e).
         buildConfigField("String", "TMDB_KEY", "\"$tmdbKey\"")
         buildConfigField("String", "DEAD_IMAGE_HOST", "\"$deadImageHost\"")
@@ -57,13 +57,18 @@ android {
             signingConfigs.findByName("streamx")?.let { signingConfig = it }
         }
     }
-    compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
+    compileOptions {
+        isCoreLibraryDesugaringEnabled = true
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
     kotlinOptions { jvmTarget = "17" }
     buildFeatures { compose = true; buildConfig = true }
     // Fichiers de la bibliothèque protobuf inutiles à l'exécution (~120 Ko).
     packaging { resources { excludes += listOf("google/protobuf/*.proto", "core/*.proto.bin") } }
 }
 dependencies {
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs_nio:2.1.5")
     val composeBom = platform("androidx.compose:compose-bom:2024.12.01")
     implementation(composeBom)
     implementation("androidx.activity:activity-compose:1.9.3")
