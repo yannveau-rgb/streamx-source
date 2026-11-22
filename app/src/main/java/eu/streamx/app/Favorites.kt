@@ -235,10 +235,12 @@ fun FavoritesScreen(account: Account, onDetail: OpenDetail) {
     var filter by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf("all") }
     var focusedLive by remember { mutableStateOf<Item?>(null) }
     val theme = navThemeOf(NavIconType.FAVORITES)
+    val firstChipFocus = rememberSafeFocus()
 
     Box(
         Modifier
             .fillMaxSize()
+            .tvPageEntry(firstChipFocus)
             .cachedDraw {
                 drawRect(
                     Brush.radialGradient(
@@ -276,7 +278,7 @@ fun FavoritesScreen(account: Account, onDetail: OpenDetail) {
                     contentPadding = PaddingValues(horizontal = 28.dp, vertical = 4.dp)
                 ) {
                     item(key = "all") {
-                        SelectChip(stringResource(R.string.facet_all), filter == "all") { filter = "all" }
+                        SelectChip(stringResource(R.string.facet_all), filter == "all", Modifier.safeFocusTarget(firstChipFocus)) { filter = "all" }
                     }
                     if (generalLiveFavs.isNotEmpty()) {
                         item(key = "live") {

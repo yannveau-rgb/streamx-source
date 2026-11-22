@@ -117,13 +117,13 @@ fun TrailerButton(kind: Kind, item: Item) {
 
 /** Bouton « Ma liste » : bascule l'ajout / le retrait du titre. */
 @Composable
-fun ListButton(kind: Kind, item: Item) {
+fun ListButton(kind: Kind, item: Item, modifier: Modifier = Modifier) {
     val ctx = LocalContext.current
     val fv = FavVersion.v
     val inList = remember(fv, item.id) { Favorites.contains(ctx, kind, item.id) }
     PillButton(
         stringResource(if (inList) R.string.in_my_list else R.string.my_list),
-        if (inList) Icons.Outlined.Check else Icons.Outlined.Add, false, active = inList
+        if (inList) Icons.Outlined.Check else Icons.Outlined.Add, false, modifier = modifier, active = inList
     ) { Favorites.toggle(ctx, kind, item) }
 }
 

@@ -1,23 +1,29 @@
 package eu.streamx.app
 
 import android.content.Context
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.foundation.border
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Close
@@ -33,6 +39,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
@@ -46,14 +53,23 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -220,8 +236,10 @@ fun NetImage(
 }
 
 /**
- * Champ de saisie unifié en verre dépoli avec liseré dégradé violet-turquoise au focus.
+ * Champ de saisie unifié en verre dépoli pour télécommande Android TV :
+ * OK pour activer le clavier virtuel, flèches pour naviguer sans rester piégé dans la saisie.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun GlassInputBox(
     value: String,
@@ -234,9 +252,26 @@ fun GlassInputBox(
     horizontalPadding: Dp = 16.dp,
     verticalPadding: Dp = 10.dp,
     modifier: Modifier = Modifier,
-    fieldModifier: Modifier = Modifier
+    fieldModifier: Modifier = Modifier,
+    onSubmit: (() -> Unit)? = null
 ) {
+    val focusManager = LocalFocusManager.current
+    val keyboard = LocalSoftwareKeyboardController.current
+    var tf by remember { mutableStateOf(TextFieldValue(value, TextRange(value.length))) }
+    LaunchedEffect(value) { if (value != tf.text) tf = TextFieldValue(value, TextRange(value.length)) }
     var focused by remember { mutableStateOf(false) }
+    var editing by remember { mutableStateOf(false) }
+    val imeVisible = WindowInsets.isImeVisible
+    var imeSeen by remember { mutableStateOf(false) }
+    LaunchedEffect(imeVisible, editing) {
+        if (!editing) imeSeen = false
+        else if (imeVisible) imeSeen = true
+        else if (imeSeen) { editing = false; imeSeen = false }
+    }
+    BackHandler(enabled = focused && editing) {
+        editing = false
+        keyboard?.hide()
+    }
     Box(
         modifier
             .glass(shape, 0.9f)
@@ -248,20 +283,70 @@ fun GlassInputBox(
             )
             .padding(horizontal = horizontalPadding, vertical = verticalPadding)
     ) {
-        if (value.isEmpty() && hint.isNotEmpty()) {
-            Text(hint, color = SX.Muted, fontSize = fontSizeSp.sp, maxLines = 1)
+        if (tf.text.isEmpty() && hint.isNotEmpty()) {
+            Text(hint, color = SX.Muted, fontSize = fontSizeSp.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         BasicTextField(
-            value = value,
-            onValueChange = onValueChange,
+            value = tf,
+            onValueChange = {
+                tf = it
+                if (it.text != value) onValueChange(it.text)
+            },
             singleLine = true,
+            readOnly = !editing,
             textStyle = TextStyle(color = Color.White, fontSize = fontSizeSp.sp),
             cursorBrush = SolidColor(LocalNavTheme.current.ring),
             visualTransformation = if (password) PasswordVisualTransformation() else VisualTransformation.None,
             keyboardOptions = keyboardOptions,
+            keyboardActions = KeyboardActions(
+                onSearch = { editing = false; keyboard?.hide(); onSubmit?.invoke() },
+                onNext = { editing = false; keyboard?.hide(); focusManager.moveFocus(FocusDirection.Down) },
+                onDone = { editing = false; keyboard?.hide(); onSubmit?.invoke() }
+            ),
             modifier = fieldModifier
                 .fillMaxWidth()
-                .onFocusChanged { focused = it.isFocused }
+                .onFocusChanged { focused = it.isFocused; if (!it.isFocused) editing = false }
+                .onPreviewKeyEvent { ev ->
+                    if (editing) {
+                        if (ev.type == KeyEventType.KeyDown) {
+                            val out = when {
+                                ev.key == Key.DirectionUp -> FocusDirection.Up
+                                ev.key == Key.DirectionDown -> FocusDirection.Down
+                                ev.key == Key.DirectionRight && tf.selection.end >= tf.text.length -> FocusDirection.Right
+                                ev.key == Key.DirectionLeft && tf.selection.start == 0 -> FocusDirection.Left
+                                else -> null
+                            }
+                            if (out != null) {
+                                editing = false
+                                keyboard?.hide()
+                                focusManager.moveFocus(out)
+                                return@onPreviewKeyEvent true
+                            }
+                        }
+                        return@onPreviewKeyEvent false
+                    }
+                    val dir = when (ev.key) {
+                        Key.DirectionRight -> FocusDirection.Right
+                        Key.DirectionLeft -> FocusDirection.Left
+                        Key.DirectionUp -> FocusDirection.Up
+                        Key.DirectionDown -> FocusDirection.Down
+                        else -> null
+                    }
+                    when {
+                        dir != null -> {
+                            if (ev.type == KeyEventType.KeyDown) focusManager.moveFocus(dir)
+                            true
+                        }
+                        ev.key == Key.DirectionCenter || ev.key == Key.Enter || ev.key == Key.NumPadEnter -> {
+                            if (ev.type == KeyEventType.KeyUp) {
+                                editing = true
+                                keyboard?.show()
+                            }
+                            true
+                        }
+                        else -> false
+                    }
+                }
         )
     }
 }
@@ -282,9 +367,9 @@ fun Modifier.bleedStart(amount: Dp = SX.Gutter): Modifier = layout { measurable,
 }
 
 @Composable
-fun RoundGlassButton(icon: ImageVector, hasNotification: Boolean, onClick: () -> Unit = {}, description: String? = null) {
+fun RoundGlassButton(icon: ImageVector, hasNotification: Boolean, onClick: () -> Unit = {}, description: String? = null, modifier: Modifier = Modifier) {
     Box(
-        Modifier
+        modifier
             .size(40.dp)
             .tvFocus(shape = CircleShape, cornerRadius = 20.dp, scale = 1.1f, onClick = onClick)
     ) {

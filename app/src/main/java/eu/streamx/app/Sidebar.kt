@@ -5,6 +5,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -312,6 +313,8 @@ fun Sidebar(items: List<NavItem>, selected: Int, requesters: List<FocusRequester
         @Composable
         fun ColumnScope.row(i: Int) = NavRow(
             item = items[i],
+            selected = i == activeKey,
+            focused = i == focusedKey,
             highlight = i == targetKey,
             requester = requesters[i],
             up = if (i == 0) FocusRequester.Cancel else requesters.getOrNull(i - 1),
@@ -349,6 +352,8 @@ fun Sidebar(items: List<NavItem>, selected: Int, requesters: List<FocusRequester
 @Composable
 private fun NavRow(
     item: NavItem,
+    selected: Boolean,
+    focused: Boolean,
     highlight: Boolean,
     requester: FocusRequester,
     up: FocusRequester? = null,
@@ -360,9 +365,23 @@ private fun NavRow(
     val hasUpdateBadge = item.type == NavIconType.SETTINGS && UpdateState.info != null
     val shape = RoundedCornerShape(13.dp)
     val tile = RoundedCornerShape(9.dp)
-    val tint = remember(item.type) { navThemeOf(item.type).c1 }
-    // L'icône active se soulève vers la goutte, grossit légèrement et rayonne de la teinte de la rubrique.
+    val theme = remember(item.type) { navThemeOf(item.type) }
+    val tint = theme.c1
+    val fp = rememberFocusProgress(focused).value
+    // L'icône se soulève et rayonne dans le verre liquide ; au focus clavier, un halo vitré + liseré lumineux encadrent la ligne (sans carré blanc opaque).
     val lift by animateFloatAsState(if (highlight) 1f else 0f, spring(dampingRatio = 0.6f, stiffness = 300f), label = "iconLift")
+
+    val rowTextColor = when {
+        focused -> Color.White
+        highlight -> Color(0xEDFFFFFF)
+        selected -> theme.ring
+        else -> Color(0xFFBFC6DF)
+    }
+    val rowIconTint = when {
+        focused || highlight -> Color.White
+        selected -> theme.ring
+        else -> Color(0xFFA9B0CC)
+    }
 
     Row(
         Modifier
@@ -375,9 +394,34 @@ private fun NavRow(
                 if (down != null) this.down = down
             }
             .onFocusChanged { onFocusState(it.isFocused) }
-            // Pas de contour ni de halo propres à la ligne : c'est la goutte, dans le contour du panneau, qui marque la rubrique.
-            .tvFocus(shape = shape, cornerRadius = 13.dp, scale = 1f, decorate = false, onClick = onClick)
+            .tvFocus(shape = shape, cornerRadius = 13.dp, scale = if (focused) 1.04f else 1f, decorate = false, onClick = onClick)
             .clip(shape)
+            .background(
+                when {
+                    fp > 0.01f -> Brush.horizontalGradient(
+                        listOf(
+                            lerp(Color.Transparent, Color.White.copy(alpha = 0.16f), fp),
+                            lerp(Color.Transparent, theme.c1.copy(alpha = 0.24f), fp)
+                        )
+                    )
+                    selected && !highlight -> Brush.horizontalGradient(listOf(theme.c1.copy(alpha = 0.14f), theme.c1.copy(alpha = 0.05f)))
+                    else -> Brush.horizontalGradient(listOf(Color.Transparent, Color.Transparent))
+                }
+            )
+            .then(
+                if (fp > 0.02f) {
+                    Modifier.border(
+                        1.4.dp,
+                        Brush.horizontalGradient(
+                            listOf(
+                                Color.White.copy(alpha = 0.88f * fp),
+                                theme.ring.copy(alpha = 0.90f * fp)
+                            )
+                        ),
+                        shape
+                    )
+                } else Modifier
+            )
             .padding(horizontal = 6.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -392,7 +436,7 @@ private fun NavRow(
                 .drawBehind {
                     if (lift > 0.02f) {
                         drawCircle(
-                            Brush.radialGradient(listOf(tint.copy(alpha = 0.50f * lift), Color.Transparent), radius = size.maxDimension * 0.95f),
+                            Brush.radialGradient(listOf(tint.copy(alpha = 0.55f * lift), Color.Transparent), radius = size.maxDimension * 0.95f),
                             radius = size.maxDimension * 0.95f
                         )
                     }
@@ -402,7 +446,7 @@ private fun NavRow(
                 Modifier.matchParentSize().then(if (highlight) Modifier.glass(tile, 1.0f) else Modifier),
                 contentAlignment = Alignment.Center
             ) {
-                SidebarNavIcon(item.type, highlight, if (highlight) Color.White else Color(0xFFA9B0CC), Modifier.size(18.dp))
+                SidebarNavIcon(item.type, highlight || selected, rowIconTint, Modifier.size(18.dp))
             }
             if (hasUpdateBadge) {
                 Box(
@@ -417,9 +461,9 @@ private fun NavRow(
         Spacer(Modifier.width(9.dp))
         Text(
             stringResource(item.label),
-            color = if (highlight) Color.White else Color(0xFFC9CEE4),
+            color = rowTextColor,
             fontSize = 12.5.sp,
-            fontWeight = if (highlight) FontWeight.SemiBold else FontWeight.Medium,
+            fontWeight = if (focused || highlight || selected) FontWeight.SemiBold else FontWeight.Medium,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f)

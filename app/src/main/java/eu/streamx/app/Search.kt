@@ -2,6 +2,7 @@ package eu.streamx.app
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
@@ -24,8 +25,7 @@ import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -58,20 +58,30 @@ internal fun search(kind: Kind, q: String, hidden: Set<String>, active: () -> Bo
 }
 
 @Composable
-fun SearchScreen(account: Account, initial: String = "", onClose: () -> Unit, onDetail: OpenDetail) {
+fun SearchScreen(
+    account: Account,
+    initial: String = "",
+    onQueryChange: (String) -> Unit = {},
+    onClose: () -> Unit,
+    onDetail: OpenDetail
+) {
     BackHandler(onBack = onClose)
     val ctx = LocalContext.current
     var query by remember { mutableStateOf(initial) }
-    val focus = remember { FocusRequester() }
-    val keyboard = LocalSoftwareKeyboardController.current
+    val inputFocus = rememberSafeFocus()
+    val firstResult = rememberSafeFocus()
+    var hasFocusedOnce by remember { mutableStateOf(false) }
+    var firstQueryRun by remember { mutableStateOf(true) }
     val cv = Catalog.version
     val hv = HiddenVersion.v
     val results by produceState<Results?>(null, query, cv, hv) {
         val q = normalize(query.trim())
         if (q.length < 2) {
+            firstQueryRun = false
             value = null
         } else {
-            delay(250)
+            if (!firstQueryRun) delay(250)
+            firstQueryRun = false
             value = withContext(Dispatchers.Default) {
                 val active = { isActive }
                 Results(
@@ -83,15 +93,42 @@ fun SearchScreen(account: Account, initial: String = "", onClose: () -> Unit, on
         }
     }
     LaunchedEffect(Unit) {
-        runCatching { focus.requestFocus() }
-        if (initial.isEmpty()) keyboard?.show()
+        if (initial.isBlank()) {
+            delay(40)
+            inputFocus.tryFocus()
+            hasFocusedOnce = true
+        }
     }
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(start = 28.dp, top = 24.dp)) {
+    LaunchedEffect(results) {
+        val r = results ?: return@LaunchedEffect
+        if (!hasFocusedOnce && initial.isNotBlank()) {
+            if (FocusMemory.restore != null) {
+                hasFocusedOnce = true
+                return@LaunchedEffect
+            }
+            if (r.isEmpty()) {
+                delay(40)
+                inputFocus.tryFocus()
+                hasFocusedOnce = true
+                return@LaunchedEffect
+            }
+            repeat(15) {
+                delay(40)
+                if (firstResult.tryFocus()) {
+                    hasFocusedOnce = true
+                    return@LaunchedEffect
+                }
+            }
+            inputFocus.tryFocus()
+            hasFocusedOnce = true
+        }
+    }
+    Column(Modifier.fillMaxSize().tvPageEntry(if (initial.isBlank()) inputFocus else firstResult, inputFocus).verticalScroll(rememberScrollState()).padding(start = 28.dp, top = 24.dp)) {
         Text(stringResource(R.string.search_title), color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(10.dp))
         GlassInputBox(
             value = query,
-            onValueChange = { query = it },
+            onValueChange = { query = it; onQueryChange(it) },
             hint = stringResource(R.string.search_hint),
             shape = RoundedCornerShape(50),
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
@@ -99,7 +136,8 @@ fun SearchScreen(account: Account, initial: String = "", onClose: () -> Unit, on
             horizontalPadding = 16.dp,
             verticalPadding = 11.dp,
             modifier = Modifier.padding(end = 28.dp).fillMaxWidth(),
-            fieldModifier = Modifier.focusRequester(focus)
+            fieldModifier = Modifier.safeFocusTarget(inputFocus),
+            onSubmit = { firstResult.tryFocus() }
         )
         Spacer(Modifier.height(12.dp))
         val r = results
@@ -109,9 +147,18 @@ fun SearchScreen(account: Account, initial: String = "", onClose: () -> Unit, on
             r == null -> Unit
             r.isEmpty() -> Text(stringResource(R.string.search_empty), color = SX.Muted, fontSize = 12.sp)
             else -> {
-                ResultRow(R.string.movies, r.movies, Kind.VOD, account, onDetail)
-                ResultRow(R.string.series, r.series, Kind.SERIES, account, onDetail)
-                ResultRow(R.string.live, r.live, Kind.LIVE, account, onDetail)
+                var assignedFirst = false
+                if (r.movies.isNotEmpty()) {
+                    ResultRow(R.string.movies, r.movies, Kind.VOD, account, firstResult, !assignedFirst, onDetail)
+                    assignedFirst = true
+                }
+                if (r.series.isNotEmpty()) {
+                    ResultRow(R.string.series, r.series, Kind.SERIES, account, firstResult, !assignedFirst, onDetail)
+                    assignedFirst = true
+                }
+                if (r.live.isNotEmpty()) {
+                    ResultRow(R.string.live, r.live, Kind.LIVE, account, firstResult, !assignedFirst, onDetail)
+                }
             }
         }
         Spacer(Modifier.height(24.dp))
@@ -119,16 +166,32 @@ fun SearchScreen(account: Account, initial: String = "", onClose: () -> Unit, on
 }
 
 @Composable
-private fun ResultRow(title: Int, list: List<Entry>, kind: Kind, account: Account, onDetail: OpenDetail) {
+private fun ResultRow(
+    title: Int,
+    list: List<Entry>,
+    kind: Kind,
+    account: Account,
+    firstFocus: SafeFocus,
+    attachFirst: Boolean,
+    onDetail: OpenDetail
+) {
     if (list.isEmpty()) return
     val ctx = LocalContext.current
     Text(stringResource(title), color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(bottom = 2.dp))
-    LazyRow(
-        Modifier.bleedStart(),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-        contentPadding = PaddingValues(horizontal = 28.dp, vertical = 7.dp)
-    ) {
-        items(list, key = { it.id }) { e -> ItemCard(e.toItem(), kind == Kind.LIVE) { openItem(ctx, account, kind, e.toItem(), onDetail) } }
+    RowKey("search_${kind.key}") {
+        LazyRow(
+            Modifier.bleedStart(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            contentPadding = PaddingValues(horizontal = 28.dp, vertical = 7.dp)
+        ) {
+            items(list, key = { it.id }) { e ->
+                ItemCard(
+                    e.toItem(),
+                    kind == Kind.LIVE,
+                    extraFocus = if (attachFirst && e.id == list.first().id) firstFocus else null
+                ) { openItem(ctx, account, kind, e.toItem(), onDetail) }
+            }
+        }
     }
     Spacer(Modifier.height(10.dp))
 }

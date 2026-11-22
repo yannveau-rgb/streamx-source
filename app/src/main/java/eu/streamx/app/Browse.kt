@@ -86,6 +86,21 @@ object ItemCache {
 fun BrowseScreen(kind: Kind, account: Account, title: Int, onDetail: OpenDetail) {
     val ctx = LocalContext.current
     var managing by remember(kind) { mutableStateOf(false) }
+    var wasManaging by remember(kind) { mutableStateOf(false) }
+    val notifySub = LocalNotifySubScreen.current
+    LaunchedEffect(managing) {
+        notifySub(managing)
+        if (managing) wasManaging = true
+    }
+    val manageFocus = rememberSafeFocus()
+    val firstChipFocus = rememberSafeFocus()
+    LaunchedEffect(managing) {
+        if (!managing && wasManaging) {
+            wasManaging = false
+            delay(50)
+            manageFocus.tryFocus()
+        }
+    }
     if (managing) {
         BackHandler { managing = false }
         CategoriesScreen(kind, account, title) { managing = false }
@@ -136,6 +151,7 @@ fun BrowseScreen(kind: Kind, account: Account, title: Int, onDetail: OpenDetail)
     Box(
         Modifier
             .fillMaxSize()
+            .tvPageEntry(firstChipFocus)
             .cachedDraw {
                 drawRect(
                     Brush.radialGradient(
@@ -162,7 +178,13 @@ fun BrowseScreen(kind: Kind, account: Account, title: Int, onDetail: OpenDetail)
             },
             stringResource(title),
             modifier = Modifier.padding(horizontal = 28.dp),
-            trailing = { ActionChip(stringResource(R.string.cat_manage), icon = Icons.Outlined.Tune) { managing = true } }
+            trailing = {
+                ActionChip(
+                    stringResource(R.string.cat_manage),
+                    Modifier.safeFocusTarget(manageFocus).tvDownTarget(firstChipFocus),
+                    icon = Icons.Outlined.Tune
+                ) { managing = true }
+            }
         )
         Spacer(Modifier.height(10.dp))
         val list = remember(cats, hidden) { cats?.filter { it.id !in hidden } }
@@ -203,12 +225,13 @@ fun BrowseScreen(kind: Kind, account: Account, title: Int, onDetail: OpenDetail)
         // Barre de filtres toujours présente
         if (netflix) {
             LazyRow(
+                Modifier.tvUpAction(manageFocus),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 contentPadding = PaddingValues(horizontal = 28.dp, vertical = 4.dp)
             ) {
                 // Trois groupes au lieu d'une longue file de pastilles : on ouvre un groupe, ses choix s'affichent sur la ligne du dessous.
-                item(key = "all") { SelectChip(stringResource(R.string.facet_all), facet == null && group == null) { facet = null; group = null } }
+                item(key = "all") { SelectChip(stringResource(R.string.facet_all), facet == null && group == null, Modifier.safeFocusTarget(firstChipFocus)) { facet = null; group = null } }
                 if (genreFacets.isNotEmpty()) item(key = "g_genres") {
                     SelectChip(stringResource(R.string.group_genres), group == "genres") { group = if (group == "genres") null else "genres" }
                 }
@@ -433,9 +456,9 @@ fun Shelf(kind: Kind, account: Account, cat: Category, onFocusItem: ((Item) -> U
 }
 
 @Composable
-fun ItemCard(item: Item, landscape: Boolean, onFocus: (() -> Unit)? = null, showFavBadge: Boolean = true, onClick: () -> Unit) {
+fun ItemCard(item: Item, landscape: Boolean, onFocus: (() -> Unit)? = null, showFavBadge: Boolean = true, extraFocus: SafeFocus? = null, onClick: () -> Unit) {
     if (landscape) {
-        LiveChannelCard(item = item, onFocus = onFocus, onClick = onClick)
+        LiveChannelCard(item = item, modifier = if (extraFocus != null) Modifier.safeFocusTarget(extraFocus) else Modifier, onFocus = onFocus, onClick = onClick)
         return
     }
     val ctx = LocalContext.current
@@ -502,6 +525,7 @@ fun ItemCard(item: Item, landscape: Boolean, onFocus: (() -> Unit)? = null, show
         Modifier
             .width(w)
             .height(h)
+            .then(if (extraFocus != null) Modifier.safeFocusTarget(extraFocus) else Modifier)
             .focusRequester(cardFocus.requester)
             .onFocusChanged { focused = it.hasFocus; cardFocus.note(it.hasFocus); if (it.hasFocus) onFocus?.invoke() }
             .tvFocus(

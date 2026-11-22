@@ -3,6 +3,7 @@ package eu.streamx.app
 import android.content.Context
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.Spacer
@@ -24,6 +25,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -99,6 +101,7 @@ fun rememberBellDot(info: AccountInfo?): Boolean {
     return remember(t, info, update, sv) { NotifState.hasUnread(c, info) }
 }
 
+@OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
 fun NotificationsPanel(modifier: Modifier, info: AccountInfo?, onOpenSeries: (Item) -> Unit, onClose: () -> Unit) {
     BackHandler(onBack = onClose)
@@ -113,6 +116,8 @@ fun NotificationsPanel(modifier: Modifier, info: AccountInfo?, onOpenSeries: (It
         modifier
             .padding(top = 64.dp, end = 28.dp)
             .width(305.dp)
+            .focusProperties { exit = { FocusRequester.Cancel } }
+            .focusGroup()
             .clip(shape)
             .background(Brush.verticalGradient(listOf(Color(0xF022264E), Color(0xF2101228))))
             .glass(shape, 1.1f)

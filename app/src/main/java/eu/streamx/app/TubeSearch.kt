@@ -3,10 +3,12 @@ package eu.streamx.app
 import android.app.Activity
 import android.content.Intent
 import android.speech.RecognizerIntent
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -70,23 +72,35 @@ import kotlinx.coroutines.delay
  * OK pour écrire (ou le micro pour dicter) ; les résultats défilent en direct sous la barre dès 2 lettres,
  * et un panneau propose les suggestions de YouTube (ou les dernières recherches quand la barre est vide).
  */
-@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class, androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
-fun TubeSearchBar(query: String, onQuery: (String) -> Unit, onSubmit: (String) -> Unit, modifier: Modifier = Modifier, downTarget: FocusRequester? = null) {
+fun TubeSearchBar(
+    query: String,
+    onQuery: (String) -> Unit,
+    onSubmit: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    fieldFocus: SafeFocus = rememberSafeFocus(),
+    downTarget: SafeFocus? = null,
+    fallbackDownTarget: SafeFocus? = null,
+    onRequestResults: (() -> Unit)? = null
+) {
     val ctx = LocalContext.current
     val focusManager = LocalFocusManager.current
     val keyboard = LocalSoftwareKeyboardController.current
     // On garde le TextFieldValue entier (texte, curseur ET zone de composition) : le recréer à chaque frappe casse le clavier Google.
     var tf by remember { mutableStateOf(TextFieldValue(query)) }
-    LaunchedEffect(query) { if (query != tf.text) tf = TextFieldValue(query) }
-    fun setText(s: String) { tf = TextFieldValue(s, androidx.compose.ui.text.TextRange(s.length)); onQuery(s) }
+    LaunchedEffect(query) { if (query != tf.text) tf = TextFieldValue(query, androidx.compose.ui.text.TextRange(query.length)) }
     var active by remember { mutableStateOf(false) }
     var inPanel by remember { mutableStateOf(false) }
     var barFocused by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf(false) }
-    val fieldReq = remember { FocusRequester() }
+    var panelDismissed by remember { mutableStateOf(false) }
+    fun setText(s: String) {
+        tf = TextFieldValue(s, androidx.compose.ui.text.TextRange(s.length))
+        panelDismissed = false
+        onQuery(s)
+    }
 
-    // Le clavier se referme (touche Retour) : on quitte le mode saisie pour que les flèches renavigent.
     val imeVisible = androidx.compose.foundation.layout.WindowInsets.isImeVisible
     var imeSeen by remember { mutableStateOf(false) }
     LaunchedEffect(imeVisible, editing) {
@@ -107,25 +121,71 @@ fun TubeSearchBar(query: String, onQuery: (String) -> Unit, onSubmit: (String) -
         }
     }
 
-    val startVoice = rememberVoiceSearch { setText(it); onSubmit(it) }
+    val startVoice = rememberVoiceSearch { setText(it); panelDismissed = true; onSubmit(it); fieldFocus.tryFocus(); onRequestResults?.invoke() }
     val canSpeak = true
+    val firstSuggestion = rememberSafeFocus()
+    val panelOpen = active && !panelDismissed && suggestions.isNotEmpty() && (editing || inPanel || text.trim().length >= 2)
 
     fun submit(s: String) {
         val q = s.trim()
         if (q.isEmpty()) return
         setText(q)
+        panelDismissed = true
         onSubmit(q)
         editing = false
         keyboard?.hide()
-        // Le focus reste dans la barre (jamais « nulle part ») ; la flèche du bas descend ensuite dans les résultats.
-        runCatching { fieldReq.requestFocus() }
+        if (downTarget?.tryFocus() != true && fallbackDownTarget?.tryFocus() != true) {
+            fieldFocus.tryFocus()
+            onRequestResults?.invoke()
+        }
     }
 
-    // Flèche bas : droit vers le premier résultat (sinon Compose choisit la puce « Mes thèmes », voisine dans le couloir),
-    // sauf quand le panneau de suggestions est ouvert : la flèche y descend d'abord.
-    val panelOpen = suggestions.isNotEmpty() && (editing || inPanel)
-    val downMod = if (downTarget != null && !panelOpen) Modifier.focusProperties { down = downTarget } else Modifier
-    Column(modifier.width(400.dp).onFocusChanged { active = it.hasFocus }) {
+    fun goDownFromBar(): Boolean {
+        editing = false
+        keyboard?.hide()
+        if (panelOpen && firstSuggestion.tryFocus()) return true
+        if (downTarget?.tryFocus() == true) return true
+        if (fallbackDownTarget?.tryFocus() == true) return true
+        if (text.trim().length >= 2 && onRequestResults != null) {
+            onRequestResults()
+            return true
+        }
+        return false
+    }
+
+    BackHandler(enabled = active && (editing || panelOpen || inPanel)) {
+        editing = false
+        panelDismissed = true
+        keyboard?.hide()
+        fieldFocus.tryFocus()
+    }
+
+    val barDownKey = Modifier.onPreviewKeyEvent { ev ->
+        if (ev.key == Key.DirectionDown) {
+            if (ev.type == KeyEventType.KeyDown && goDownFromBar()) return@onPreviewKeyEvent true
+            if (ev.type == KeyEventType.KeyUp && (panelOpen || text.trim().length >= 2)) return@onPreviewKeyEvent true
+        }
+        false
+    }
+
+    LaunchedEffect(active) {
+        if (!active) {
+            delay(150)
+            if (!active) panelDismissed = false
+        }
+    }
+
+    Column(
+        modifier
+            .width(400.dp)
+            .onFocusChanged {
+                active = it.hasFocus
+                if (!it.hasFocus) {
+                    editing = false
+                    inPanel = false
+                }
+            }
+    ) {
         val pill = RoundedCornerShape(50)
         Row(
             Modifier
@@ -145,7 +205,11 @@ fun TubeSearchBar(query: String, onQuery: (String) -> Unit, onSubmit: (String) -
                 }
                 BasicTextField(
                     value = tf,
-                    onValueChange = { tf = it; if (it.text != query) onQuery(it.text) },
+                    onValueChange = {
+                        tf = it
+                        panelDismissed = false
+                        if (it.text != query) onQuery(it.text)
+                    },
                     singleLine = true, readOnly = !editing,
                     textStyle = TextStyle(color = Color.White, fontSize = 13.sp),
                     cursorBrush = SolidColor(LocalNavTheme.current.ring),
@@ -153,33 +217,42 @@ fun TubeSearchBar(query: String, onQuery: (String) -> Unit, onSubmit: (String) -
                     keyboardActions = KeyboardActions(onSearch = { submit(tf.text) }),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .then(downMod)
-                        .focusRequester(fieldReq)
+                        .safeFocusTarget(fieldFocus)
                         .onFocusChanged { barFocused = it.isFocused; if (!it.isFocused) editing = false }
                         .onPreviewKeyEvent { ev ->
                             if (editing) {
                                 if (ev.type == KeyEventType.KeyDown) {
-                                    val out = when {
-                                        ev.key == Key.DirectionRight && tf.selection.end >= text.length -> FocusDirection.Right
-                                        ev.key == Key.DirectionLeft && tf.selection.start == 0 -> FocusDirection.Left
-                                        ev.key == Key.DirectionDown -> FocusDirection.Down
-                                        else -> null
+                                    when {
+                                        ev.key == Key.DirectionDown -> {
+                                            goDownFromBar()
+                                            return@onPreviewKeyEvent true
+                                        }
+                                        ev.key == Key.DirectionRight && tf.selection.end >= text.length -> {
+                                            editing = false; keyboard?.hide(); focusManager.moveFocus(FocusDirection.Right); return@onPreviewKeyEvent true
+                                        }
+                                        ev.key == Key.DirectionLeft && tf.selection.start == 0 -> {
+                                            editing = false; keyboard?.hide(); focusManager.moveFocus(FocusDirection.Left); return@onPreviewKeyEvent true
+                                        }
                                     }
-                                    if (out != null) { editing = false; keyboard?.hide(); focusManager.moveFocus(out); return@onPreviewKeyEvent true }
                                 }
                                 return@onPreviewKeyEvent false
+                            }
+                            if (ev.key == Key.DirectionDown) {
+                                if (ev.type == KeyEventType.KeyDown) {
+                                    if (!goDownFromBar()) focusManager.moveFocus(FocusDirection.Down)
+                                }
+                                return@onPreviewKeyEvent true
                             }
                             val dir = when (ev.key) {
                                 Key.DirectionRight -> FocusDirection.Right
                                 Key.DirectionLeft -> FocusDirection.Left
                                 Key.DirectionUp -> FocusDirection.Up
-                                Key.DirectionDown -> FocusDirection.Down
                                 else -> null
                             }
                             when {
                                 dir != null -> { if (ev.type == KeyEventType.KeyDown) focusManager.moveFocus(dir); true }
-                                ev.key == Key.DirectionCenter || ev.key == Key.Enter -> {
-                                    if (ev.type == KeyEventType.KeyUp) { editing = true; keyboard?.show() }
+                                ev.key == Key.DirectionCenter || ev.key == Key.Enter || ev.key == Key.NumPadEnter -> {
+                                    if (ev.type == KeyEventType.KeyUp) { panelDismissed = false; editing = true; keyboard?.show() }
                                     true
                                 }
                                 else -> false
@@ -188,12 +261,18 @@ fun TubeSearchBar(query: String, onQuery: (String) -> Unit, onSubmit: (String) -
                 )
             }
             if (text.isNotEmpty()) {
-                // Effacer d'un clic : revient à l'accueil de Tube.
+                // Effacer d'un clic : revient à l'accueil de Tube et garde le curseur sur le champ.
                 Text(
                     "✕", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold,
                     modifier = Modifier
-                        .then(downMod)
-                        .tvFocus(CircleShape, cornerRadius = 13.dp, scale = 1.12f) { runCatching { fieldReq.requestFocus() }; setText(""); editing = false; keyboard?.hide() }
+                        .then(barDownKey)
+                        .tvFocus(CircleShape, cornerRadius = 13.dp, scale = 1.12f) {
+                            panelDismissed = true
+                            editing = false
+                            keyboard?.hide()
+                            fieldFocus.tryFocus()
+                            setText("")
+                        }
                         .clip(CircleShape)
                         .padding(horizontal = 8.dp, vertical = 3.dp)
                 )
@@ -203,7 +282,7 @@ fun TubeSearchBar(query: String, onQuery: (String) -> Unit, onSubmit: (String) -
                     Icons.Outlined.Mic, stringResource(R.string.search_voice), tint = Color.White,
                     modifier = Modifier
                         .size(28.dp)
-                        .then(downMod)
+                        .then(barDownKey)
                         .tvFocus(CircleShape, cornerRadius = 14.dp, scale = 1.12f) { startVoice() }
                         .clip(CircleShape)
                         .padding(4.dp)
@@ -217,18 +296,43 @@ fun TubeSearchBar(query: String, onQuery: (String) -> Unit, onSubmit: (String) -
                     .padding(top = 8.dp)
                     .fillMaxWidth()
                     .clip(panel)
+                    .focusGroup()
                     .onFocusChanged { inPanel = it.hasFocus }
                     .background(Brush.verticalGradient(listOf(Color(0xFF232852), Color(0xFF10122A))))
                     .border(0.8.dp, Brush.linearGradient(listOf(Color(0x80FFFFFF), Color(0x1AFFFFFF), Color(0x402DD4BF))), panel)
                     .padding(6.dp)
             ) {
-                suggestions.forEach { (s, recent) ->
+                suggestions.forEachIndexed { idx, (s, recent) ->
                     val row = RoundedCornerShape(10.dp)
                     var rowFocused by remember { mutableStateOf(false) }
                     val rp = rememberFocusProgress(rowFocused).value
+                    val isFirst = idx == 0
+                    val isLast = idx == suggestions.lastIndex
                     Row(
                         Modifier
                             .fillMaxWidth()
+                            .then(if (isFirst) Modifier.safeFocusTarget(firstSuggestion) else Modifier)
+                            .focusProperties {
+                                left = FocusRequester.Cancel
+                                right = FocusRequester.Cancel
+                                if (isFirst) up = fieldFocus.orDefault()
+                                if (isLast) down = FocusRequester.Cancel
+                            }
+                            .onPreviewKeyEvent { ev ->
+                                if (isLast && ev.key == Key.DirectionDown && ev.type == KeyEventType.KeyDown) {
+                                    if (downTarget?.tryFocus() == true || fallbackDownTarget?.tryFocus() == true) {
+                                        panelDismissed = true
+                                        return@onPreviewKeyEvent true
+                                    }
+                                    if (text.trim().length >= 2 && onRequestResults != null) {
+                                        panelDismissed = true
+                                        onRequestResults()
+                                        return@onPreviewKeyEvent true
+                                    }
+                                    return@onPreviewKeyEvent true
+                                }
+                                false
+                            }
                             .onFocusChanged { rowFocused = it.isFocused }
                             .tvFocus(row, scale = 1.0f, decorate = false) { submit(s) }
                             .clip(row)

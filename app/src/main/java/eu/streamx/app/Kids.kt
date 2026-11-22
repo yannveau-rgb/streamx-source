@@ -110,12 +110,15 @@ fun KidsShell(account: Account) {
     var detail by remember { mutableStateOf<Pair<Kind, Item>?>(null) }
     var asking by remember { mutableStateOf(false) }
     var wrong by remember { mutableStateOf(false) }
-    val open: OpenDetail = { k, i -> detail = k to i }
-    BackHandler(enabled = detail != null) { detail = null }
-    LaunchedEffect(detail) {
-        delay(600)
-        runCatching { focus.moveFocus(FocusDirection.Enter) }
+    val open: OpenDetail = { k, i ->
+        if (detail == null) FocusMemory.onOpenDetail()
+        detail = k to i
     }
+    val closeDetail: () -> Unit = {
+        FocusMemory.onCloseDetail()
+        detail = null
+    }
+    BackHandler(enabled = detail != null) { closeDetail() }
     val sectionType = when (detail?.first) {
         Kind.SERIES -> NavIconType.SERIES
         Kind.VOD -> NavIconType.MOVIES
@@ -125,8 +128,8 @@ fun KidsShell(account: Account) {
         Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(SX.BgTop, SX.BgBottom)))) {
             val d = detail
             when {
-                d != null && d.first == Kind.SERIES -> SeriesScreen(account, d.second) { detail = null }
-                d != null -> MovieScreen(account, d.second, { detail = null }, open)
+                d != null && d.first == Kind.SERIES -> SeriesScreen(account, d.second) { closeDetail() }
+                d != null -> MovieScreen(account, d.second, { closeDetail() }, open)
                 else -> ThemedHubScreen(HubTheme.KIDS, account, open)
             }
             Box(Modifier.align(Alignment.TopEnd).padding(top = 18.dp, end = 28.dp)) {

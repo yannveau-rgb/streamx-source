@@ -8,6 +8,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -41,6 +42,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
@@ -71,20 +73,30 @@ import kotlinx.coroutines.withContext
  * Barre de recherche de l'accueil : les suggestions (films, séries, chaînes) apparaissent pendant la frappe.
  * Valider la saisie ouvre la page de résultats complète.
  */
-@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class, androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
-fun HomeSearchBar(account: Account, onOpenAll: (String) -> Unit, onDetail: OpenDetail, modifier: Modifier = Modifier) {
+fun HomeSearchBar(
+    account: Account,
+    onOpenAll: (String) -> Unit,
+    onDetail: OpenDetail,
+    modifier: Modifier = Modifier,
+    fieldFocus: SafeFocus = rememberSafeFocus()
+) {
     val ctx = LocalContext.current
     val focusManager = LocalFocusManager.current
     val keyboard = LocalSoftwareKeyboardController.current
     // On garde le TextFieldValue entier (texte, curseur ET zone de composition) : le recréer à chaque frappe casse le clavier Google.
     var tf by remember { mutableStateOf(androidx.compose.ui.text.input.TextFieldValue("")) }
     val query = tf.text
-    fun setQuery(s: String) { tf = androidx.compose.ui.text.input.TextFieldValue(s) }
     var active by remember { mutableStateOf(false) }
+    var inPanel by remember { mutableStateOf(false) }
     var barFocused by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf(false) }
-    val fieldReq = remember { FocusRequester() }
+    var panelDismissed by remember { mutableStateOf(false) }
+    fun setQuery(s: String) {
+        tf = androidx.compose.ui.text.input.TextFieldValue(s, androidx.compose.ui.text.TextRange(s.length))
+        panelDismissed = false
+    }
 
     val imeVisible = androidx.compose.foundation.layout.WindowInsets.isImeVisible
     var imeSeen by remember { mutableStateOf(false) }
@@ -110,12 +122,55 @@ fun HomeSearchBar(account: Account, onOpenAll: (String) -> Unit, onDetail: OpenD
         }
     }
     // Recherche vocale intégrée (voir VoiceSearch.kt) : l'appli écoute elle-même, sans l'ancien écran Google.
-    val startVoice = rememberVoiceSearch { setQuery(it) }
+    val startVoice = rememberVoiceSearch { setQuery(it); fieldFocus.tryFocus() }
     val canSpeak = true
-    val showPanel = active && query.trim().length >= 2
-    BackHandler(enabled = showPanel) { setQuery(""); focusManager.clearFocus() }
+    val firstSuggestion = rememberSafeFocus()
+    val showPanel = active && !panelDismissed && query.trim().length >= 2
 
-    Column(modifier.width(330.dp).onFocusChanged { active = it.hasFocus }) {
+    BackHandler(enabled = active && (editing || showPanel || inPanel)) {
+        if (editing) {
+            editing = false
+            keyboard?.hide()
+        } else {
+            panelDismissed = true
+            setQuery("")
+        }
+        fieldFocus.tryFocus()
+    }
+
+    fun goDownFromBar(): Boolean {
+        editing = false
+        keyboard?.hide()
+        if (showPanel && firstSuggestion.tryFocus()) return true
+        return false
+    }
+
+    val barDownKey = Modifier.onPreviewKeyEvent { ev ->
+        if (showPanel && ev.key == Key.DirectionDown) {
+            if (ev.type == KeyEventType.KeyDown) goDownFromBar()
+            return@onPreviewKeyEvent true
+        }
+        false
+    }
+
+    LaunchedEffect(active) {
+        if (!active) {
+            delay(150)
+            if (!active) panelDismissed = false
+        }
+    }
+
+    Column(
+        modifier
+            .width(330.dp)
+            .onFocusChanged {
+                active = it.hasFocus
+                if (!it.hasFocus) {
+                    editing = false
+                    inPanel = false
+                }
+            }
+    ) {
         val pill = RoundedCornerShape(50)
         Row(
             Modifier
@@ -135,38 +190,55 @@ fun HomeSearchBar(account: Account, onOpenAll: (String) -> Unit, onDetail: OpenD
                 }
                 BasicTextField(
                     value = tf,
-                    onValueChange = { tf = it }, singleLine = true, readOnly = !editing,
+                    onValueChange = { tf = it; panelDismissed = false }, singleLine = true, readOnly = !editing,
                     textStyle = TextStyle(color = Color.White, fontSize = 13.sp),
                     cursorBrush = SolidColor(LocalNavTheme.current.ring),
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                    keyboardActions = KeyboardActions(onSearch = { if (query.isNotBlank()) { onOpenAll(query.trim()); setQuery(""); focusManager.clearFocus() } }),
+                    keyboardActions = KeyboardActions(onSearch = {
+                        if (query.isNotBlank()) {
+                            val q = query.trim()
+                            editing = false; keyboard?.hide(); panelDismissed = true; setQuery("")
+                            onOpenAll(q)
+                        }
+                    }),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .focusRequester(fieldReq)
+                        .safeFocusTarget(fieldFocus)
                         .onFocusChanged { barFocused = it.isFocused; if (!it.isFocused) editing = false }
                         .onPreviewKeyEvent { ev ->
                             if (editing) {
                                 if (ev.type == KeyEventType.KeyDown) {
-                                    val out = when {
-                                        ev.key == Key.DirectionRight && tf.selection.end >= query.length -> FocusDirection.Right
-                                        ev.key == Key.DirectionLeft && tf.selection.start == 0 -> FocusDirection.Left
-                                        else -> null
+                                    when {
+                                        ev.key == Key.DirectionDown -> {
+                                            if (!goDownFromBar()) focusManager.moveFocus(FocusDirection.Down)
+                                            return@onPreviewKeyEvent true
+                                        }
+                                        ev.key == Key.DirectionRight && tf.selection.end >= query.length -> {
+                                            editing = false; keyboard?.hide(); focusManager.moveFocus(FocusDirection.Right); return@onPreviewKeyEvent true
+                                        }
+                                        ev.key == Key.DirectionLeft && tf.selection.start == 0 -> {
+                                            editing = false; keyboard?.hide(); focusManager.moveFocus(FocusDirection.Left); return@onPreviewKeyEvent true
+                                        }
                                     }
-                                    if (out != null) { editing = false; keyboard?.hide(); focusManager.moveFocus(out); return@onPreviewKeyEvent true }
                                 }
                                 return@onPreviewKeyEvent false
+                            }
+                            if (ev.key == Key.DirectionDown) {
+                                if (ev.type == KeyEventType.KeyDown) {
+                                    if (!goDownFromBar()) focusManager.moveFocus(FocusDirection.Down)
+                                }
+                                return@onPreviewKeyEvent true
                             }
                             val dir = when (ev.key) {
                                 Key.DirectionRight -> FocusDirection.Right
                                 Key.DirectionLeft -> FocusDirection.Left
                                 Key.DirectionUp -> FocusDirection.Up
-                                Key.DirectionDown -> FocusDirection.Down
                                 else -> null
                             }
                             when {
                                 dir != null -> { if (ev.type == KeyEventType.KeyDown) focusManager.moveFocus(dir); true }
-                                ev.key == Key.DirectionCenter || ev.key == Key.Enter -> {
-                                    if (ev.type == KeyEventType.KeyUp) { editing = true; keyboard?.show() }
+                                ev.key == Key.DirectionCenter || ev.key == Key.Enter || ev.key == Key.NumPadEnter -> {
+                                    if (ev.type == KeyEventType.KeyUp) { panelDismissed = false; editing = true; keyboard?.show() }
                                     true
                                 }
                                 else -> false
@@ -178,11 +250,12 @@ fun HomeSearchBar(account: Account, onOpenAll: (String) -> Unit, onDetail: OpenD
                 Text(
                     "✕", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold,
                     modifier = Modifier
+                        .then(barDownKey)
                         .tvFocus(CircleShape, cornerRadius = 13.dp, scale = 1.12f) {
-                            runCatching { fieldReq.requestFocus() }
-                            setQuery("")
                             editing = false
                             keyboard?.hide()
+                            fieldFocus.tryFocus()
+                            setQuery("")
                         }
                         .clip(CircleShape)
                         .padding(horizontal = 8.dp, vertical = 3.dp)
@@ -194,6 +267,7 @@ fun HomeSearchBar(account: Account, onOpenAll: (String) -> Unit, onDetail: OpenD
                     Icons.Outlined.Mic, stringResource(R.string.search_voice), tint = Color.White,
                     modifier = Modifier
                         .size(26.dp)
+                        .then(barDownKey)
                         .tvFocus(mic, cornerRadius = 13.dp, scale = 1.12f) { startVoice() }
                         .clip(mic)
                         .padding(4.dp)
@@ -207,6 +281,8 @@ fun HomeSearchBar(account: Account, onOpenAll: (String) -> Unit, onDetail: OpenD
                     .padding(top = 8.dp)
                     .fillMaxWidth()
                     .clip(panel)
+                    .focusGroup()
+                    .onFocusChanged { inPanel = it.hasFocus }
                     .background(Brush.verticalGradient(listOf(Color(0xEB262A55), Color(0xEB11132A))))
                     .border(0.8.dp, Brush.linearGradient(listOf(Color(0x80FFFFFF), Color(0x1AFFFFFF), Color(0x40B9A0FF))), panel)
                     .padding(6.dp)
@@ -218,10 +294,21 @@ fun HomeSearchBar(account: Account, onOpenAll: (String) -> Unit, onDetail: OpenD
                         color = SX.Muted, fontSize = 12.sp, modifier = Modifier.padding(horizontal = 10.dp, vertical = 9.dp)
                     )
                 }
-                suggestions.forEach { (k, e) ->
-                    SuggestionRow(e, k) {
+                suggestions.forEachIndexed { idx, (k, e) ->
+                    val isFirst = idx == 0
+                    SuggestionRow(
+                        e, k,
+                        modifier = Modifier
+                            .then(if (isFirst) Modifier.safeFocusTarget(firstSuggestion) else Modifier)
+                            .focusProperties {
+                                left = FocusRequester.Cancel
+                                right = FocusRequester.Cancel
+                                if (isFirst) up = fieldFocus.orDefault()
+                            }
+                    ) {
+                        panelDismissed = true
                         setQuery("")
-                        focusManager.clearFocus()
+                        fieldFocus.tryFocus()
                         openItem(ctx, account, k, e.toItem(), onDetail)
                     }
                 }
@@ -237,9 +324,19 @@ fun HomeSearchBar(account: Account, onOpenAll: (String) -> Unit, onDetail: OpenD
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier
                         .fillMaxWidth()
+                        .then(if (suggestions.isEmpty()) Modifier.safeFocusTarget(firstSuggestion) else Modifier)
+                        .focusProperties {
+                            left = FocusRequester.Cancel
+                            right = FocusRequester.Cancel
+                            down = FocusRequester.Cancel
+                            if (suggestions.isEmpty()) up = fieldFocus.orDefault()
+                        }
                         .onFocusChanged { allFocused = it.isFocused }
                         .tvFocus(all, scale = 1.0f, decorate = false) {
-                            onOpenAll(query.trim()); setQuery(""); focusManager.clearFocus()
+                            val q = query.trim()
+                            panelDismissed = true
+                            setQuery("")
+                            onOpenAll(q)
                         }
                         .clip(all)
                         .background(lerp(Color.Transparent, SXFocus.Fill, ap))
@@ -251,13 +348,13 @@ fun HomeSearchBar(account: Account, onOpenAll: (String) -> Unit, onDetail: OpenD
 }
 
 @Composable
-private fun SuggestionRow(e: Entry, kind: Kind, onClick: () -> Unit) {
+private fun SuggestionRow(e: Entry, kind: Kind, modifier: Modifier = Modifier, onClick: () -> Unit) {
     val shape = RoundedCornerShape(10.dp)
     val w = if (kind == Kind.LIVE) 44.dp else 28.dp
     var focused by remember { mutableStateOf(false) }
     val p = rememberFocusProgress(focused).value
     Row(
-        Modifier
+        modifier
             .fillMaxWidth()
             .onFocusChanged { focused = it.isFocused }
             .tvFocus(shape, scale = 1.0f, decorate = false, onClick = onClick)

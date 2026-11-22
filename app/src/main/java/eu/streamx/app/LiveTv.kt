@@ -262,6 +262,21 @@ data class FeaturedFrenchChannel(val number: Int, val canonicalName: String, val
 fun LiveTvScreen(account: Account, onDetail: OpenDetail) {
     val ctx = LocalContext.current
     var managing by remember { mutableStateOf(false) }
+    var wasManaging by remember { mutableStateOf(false) }
+    val notifySub = LocalNotifySubScreen.current
+    LaunchedEffect(managing) {
+        notifySub(managing)
+        if (managing) wasManaging = true
+    }
+    val manageFocus = rememberSafeFocus()
+    val firstChipFocus = rememberSafeFocus()
+    LaunchedEffect(managing) {
+        if (!managing && wasManaging) {
+            wasManaging = false
+            kotlinx.coroutines.delay(50)
+            manageFocus.tryFocus()
+        }
+    }
     if (managing) {
         BackHandler { managing = false }
         CategoriesScreen(Kind.LIVE, account, R.string.live) { managing = false }
@@ -360,6 +375,7 @@ fun LiveTvScreen(account: Account, onDetail: OpenDetail) {
     Box(
         Modifier
             .fillMaxSize()
+            .tvPageEntry(firstChipFocus)
             .cachedDraw {
                 drawRect(
                     Brush.radialGradient(
@@ -382,18 +398,25 @@ fun LiveTvScreen(account: Account, onDetail: OpenDetail) {
                 NavIconType.LIVE, stringResource(R.string.live), stringResource(R.string.live_subtitle),
                 modifier = Modifier.padding(horizontal = 28.dp),
                 // Réglage de la liste, à part des filtres.
-                trailing = { ActionChip(stringResource(R.string.cat_manage), icon = Icons.Outlined.Tune) { managing = true } }
+                trailing = {
+                    ActionChip(
+                        stringResource(R.string.cat_manage),
+                        Modifier.safeFocusTarget(manageFocus).tvDownTarget(firstChipFocus),
+                        icon = Icons.Outlined.Tune
+                    ) { managing = true }
+                }
             )
             Spacer(Modifier.height(10.dp))
 
             // Barre de filtres thématiques + favoris + gestion des catégories
             LazyRow(
+                Modifier.tvUpAction(manageFocus),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 contentPadding = PaddingValues(horizontal = 28.dp, vertical = 4.dp)
             ) {
                 item(key = "all") {
-                    SelectChip(stringResource(R.string.facet_all), facet == null) { facet = null }
+                    SelectChip(stringResource(R.string.facet_all), facet == null, Modifier.safeFocusTarget(firstChipFocus)) { facet = null }
                 }
                 if (favLive.isNotEmpty()) {
                     item(key = "favs") {
@@ -629,6 +652,7 @@ fun LiveChannelCard(
     displayName: String? = null,
     channelNum: Int? = null,
     hubTag: String = "",
+    modifier: Modifier = Modifier,
     onFocus: (() -> Unit)? = null,
     onClick: () -> Unit
 ) {
@@ -684,7 +708,7 @@ fun LiveChannelCard(
     }
 
     Box(
-        Modifier
+        modifier
             .width(w)
             .height(h)
             .onFocusChanged { focused = it.hasFocus; if (it.hasFocus) onFocus?.invoke() }

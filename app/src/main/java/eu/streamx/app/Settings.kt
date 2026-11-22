@@ -435,7 +435,7 @@ fun maskLabel(s: String): String = if (s.length <= 4) s else s.take(2) + "••
 @Composable
 fun AccountScreen(
     account: Account, profiles: List<Account>, onSwitch: (Account) -> Unit, onAddProfile: () -> Unit,
-    onOpenM3u: () -> Unit, onLogout: () -> Unit
+    onOpenM3u: () -> Unit, onLogout: () -> Unit, restoreM3uTick: Int = 0
 ) {
     val info = LocalAccountInfo.current
     val ctx = LocalContext.current
@@ -453,8 +453,17 @@ fun AccountScreen(
     var pinError by remember { mutableStateOf(false) }
     var confirmLogout by remember { mutableStateOf(false) }
     val scrollState = rememberScrollState()
-    val firstFocus = remember { FocusRequester() }
+    val firstFocus = rememberSafeFocus()
+    val m3uFocus = rememberSafeFocus()
+    val removeFocus = rememberSafeFocus()
+    val parentalFocus = rememberSafeFocus()
     LaunchedEffect(Unit) { scrollState.scrollTo(0) }
+    LaunchedEffect(restoreM3uTick) {
+        if (restoreM3uTick > 0) {
+            delay(50)
+            m3uFocus.tryFocus()
+        }
+    }
     Box(
         Modifier
             .fillMaxSize()
@@ -480,7 +489,7 @@ fun AccountScreen(
                 .fillMaxSize()
                 .padding(start = 26.dp, end = 26.dp, top = 16.dp, bottom = 24.dp)
                 .verticalScroll(scrollState)
-                .focusProperties { enter = { firstFocus } }
+                .focusProperties { enter = { firstFocus.orDefault() } }
                 .focusGroup()
         ) {
             // En-tête compact Réglages
@@ -520,16 +529,16 @@ fun AccountScreen(
                     SelectChip(
                         stringResource(R.string.profile_n, idx + 1),
                         p.server == account.server && p.user == account.user,
-                        modifier = if (idx == 0) Modifier.focusRequester(firstFocus) else Modifier
+                        modifier = if (idx == 0) Modifier.safeFocusTarget(firstFocus) else Modifier
                     ) {
                         if (!(p.server == account.server && p.user == account.user)) onSwitch(p)
                     }
                 }
                 ActionChip(
                     stringResource(R.string.add_profile),
-                    modifier = if (profiles.isEmpty()) Modifier.focusRequester(firstFocus) else Modifier
+                    modifier = if (profiles.isEmpty()) Modifier.safeFocusTarget(firstFocus) else Modifier
                 ) { onAddProfile() }
-                ActionChip(stringResource(R.string.remove_profile)) { confirmLogout = true }
+                ActionChip(stringResource(R.string.remove_profile), Modifier.safeFocusTarget(removeFocus)) { confirmLogout = true }
             }
 
             Spacer(Modifier.height(7.dp))
@@ -538,7 +547,7 @@ fun AccountScreen(
                 title = stringResource(R.string.m3u),
                 subtitle = stringResource(R.string.m3u_desc)
             ) {
-                ActionChip(stringResource(R.string.m3u_open)) { onOpenM3u() }
+                ActionChip(stringResource(R.string.m3u_open), Modifier.safeFocusTarget(m3uFocus)) { onOpenM3u() }
             }
 
             Spacer(Modifier.height(7.dp))
@@ -552,9 +561,9 @@ fun AccountScreen(
                 badgeColor = SX.Turquoise
             ) {
                 if (!hasPin) {
-                    ActionChip(stringResource(R.string.pin_set)) { pinStep = "new1"; pinError = false }
+                    ActionChip(stringResource(R.string.pin_set), Modifier.safeFocusTarget(parentalFocus)) { pinStep = "new1"; pinError = false }
                 } else {
-                    ActionChip(stringResource(R.string.kids_enable)) { ParentalStore.setKids(ctx, true) }
+                    ActionChip(stringResource(R.string.kids_enable), Modifier.safeFocusTarget(parentalFocus)) { ParentalStore.setKids(ctx, true) }
                     ActionChip(stringResource(R.string.pin_change)) { pinStep = "old"; pinError = false }
                     ActionChip(stringResource(R.string.pin_remove)) { pinStep = "remove"; pinError = false }
                 }
@@ -667,6 +676,16 @@ fun AccountScreen(
             }
             Spacer(Modifier.height(7.dp))
             // 6c. Mention obligatoire de la licence TMDB (tendances, affiches)
+        }
+        var wasConfirmLogout by remember { mutableStateOf(false) }
+        LaunchedEffect(confirmLogout) {
+            if (confirmLogout) wasConfirmLogout = true
+            else if (wasConfirmLogout) { wasConfirmLogout = false; delay(40); removeFocus.tryFocus() }
+        }
+        var wasPinStep by remember { mutableStateOf(false) }
+        LaunchedEffect(pinStep) {
+            if (pinStep.isNotEmpty()) wasPinStep = true
+            else if (wasPinStep) { wasPinStep = false; delay(40); parentalFocus.tryFocus() }
         }
         if (confirmLogout) {
             val cancelFocus = remember { FocusRequester() }

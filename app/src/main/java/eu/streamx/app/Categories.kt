@@ -267,19 +267,21 @@ fun ActionChip(
     var focused by remember { mutableStateOf(false) }
     val pState = rememberFocusProgress(focused)
     val p = pState.value
-    val content = lerp(Color(0xB8FFFFFF), SXFocus.On, p)
+    val content = lerp(SXFocus.RestText, SXFocus.On, p)
+    val fill = lerp(SXFocus.RestFill, SXFocus.Fill, p)
+    val stroke = lerp(SXFocus.RestStroke, Color.White, p)
     Row(
         modifier.height(36.dp)
             .onFocusChanged { focused = it.isFocused }
             .tvFocus(pill, scale = 1.08f, decorate = false, onClick = onClick)
             .focusShadow({ pState.value }, pill, enabled = !lowRam)
-            .clip(pill).background(lerp(Color.Transparent, SXFocus.Fill, p))
-            .border(1.dp, SXFocus.RestStroke.copy(alpha = 0.15f * (1f - p)), pill)
+            .clip(pill).background(fill)
+            .border(if (focused) 2.dp else 1.dp, stroke, pill)
             .padding(horizontal = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         if (icon != null) { Icon(icon, null, tint = content, modifier = Modifier.size(16.dp)); Spacer(Modifier.width(6.dp)) }
-        Text(label, color = content, fontSize = 13.5.sp, fontWeight = FontWeight.Medium, maxLines = 1)
+        Text(label, color = content, fontSize = 13.5.sp, fontWeight = if (focused) FontWeight.SemiBold else FontWeight.Medium, maxLines = 1)
         if (trailingIcon != null) { Spacer(Modifier.width(4.dp)); Icon(trailingIcon, null, tint = content, modifier = Modifier.size(18.dp)) }
     }
 }

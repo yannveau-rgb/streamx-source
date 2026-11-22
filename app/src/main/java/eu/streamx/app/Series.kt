@@ -119,11 +119,11 @@ fun SelectChip(
     val pState = rememberFocusProgress(focused)
     val p = pState.value
     val restFill = if (selected) th.c1.copy(alpha = 0.22f) else SXFocus.RestFill
-    val focusFill = if (selected) lerp(Color.White, th.ring, 0.30f) else SXFocus.Fill
-    val fill = lerp(restFill, focusFill, p)
+    val fill = lerp(restFill, SXFocus.Fill, p)
     val content = lerp(if (selected) th.ring else SXFocus.RestText, SXFocus.On, p)
     val ink = lerp(th.ring, lerp(th.c1, Color.Black, 0.35f), p)
-    val stroke = (if (selected) th.ring.copy(alpha = 0.70f) else SXFocus.RestStroke).let { it.copy(alpha = it.alpha * (1f - p)) }
+    val restStroke = if (selected) th.ring.copy(alpha = 0.72f) else SXFocus.RestStroke
+    val stroke = lerp(restStroke, if (selected) th.ring else Color.White, p)
     val lead = icon ?: if (selected) Icons.Outlined.Check else null
     Row(
         modifier
@@ -133,7 +133,7 @@ fun SelectChip(
             .focusShadow({ pState.value }, pill, enabled = !lowRam)
             .clip(pill)
             .background(fill)
-            .border(if (selected) 1.2.dp else 1.dp, stroke, pill)
+            .border(if (focused) 2.dp else if (selected) 1.2.dp else 1.dp, stroke, pill)
             .padding(start = if (lead != null) 12.dp else 16.dp, end = 16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -204,12 +204,16 @@ fun SeriesScreen(account: Account, item: Item, onBack: () -> Unit) {
                     InfoBlock(if (data != null) InfoCache.get("series:" + item.id) else null, Modifier.padding(top = 6.dp))
                     Spacer(Modifier.height(10.dp))
                     val d = data
-                    val playFocus = remember(item.id) { FocusRequester() }
+                    val playFocus = rememberSafeFocus()
+                    val listFocus = rememberSafeFocus()
                     val hasPlay = d?.isNotEmpty() == true
+                    var listFocused by remember { mutableStateOf(false) }
                     LaunchedEffect(item.id, hasPlay) {
+                        delay(50)
                         if (hasPlay) {
-                            delay(50)
-                            runCatching { playFocus.requestFocus() }
+                            playFocus.tryFocus()
+                        } else if (!listFocused) {
+                            listFocus.tryFocus()
                         }
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -218,16 +222,16 @@ fun SeriesScreen(account: Account, item: Item, onBack: () -> Unit) {
                             val last = watching.firstOrNull { it.key in ids }
                             val found = last?.let { w -> d.entries.firstNotNullOfOrNull { (s, l) -> l.firstOrNull { "ep:" + it.id == w.key }?.let { s to it } } }
                             if (last != null && found != null) {
-                                PillButton(stringResource(R.string.resume_episode, found.first, found.second.num), Icons.Filled.PlayArrow, true, Modifier.focusRequester(playFocus)) {
+                                PillButton(stringResource(R.string.resume_episode, found.first, found.second.num), Icons.Filled.PlayArrow, true, Modifier.safeFocusTarget(playFocus)) {
                                     play(found.second, found.first, last.pos)
                                 }
                             } else {
                                 val s0 = d.keys.first()
                                 val e0 = d[s0]!!.first()
-                                PillButton(stringResource(R.string.play_episode, s0, e0.num), Icons.Filled.PlayArrow, true, Modifier.focusRequester(playFocus)) { play(e0, s0, 0L) }
+                                PillButton(stringResource(R.string.play_episode, s0, e0.num), Icons.Filled.PlayArrow, true, Modifier.safeFocusTarget(playFocus)) { play(e0, s0, 0L) }
                             }
                         }
-                        ListButton(Kind.SERIES, item)
+                        ListButton(Kind.SERIES, item, Modifier.safeFocusTarget(listFocus).onFocusChanged { listFocused = it.isFocused })
                         TrailerButton(Kind.SERIES, item)
                     }
                 }

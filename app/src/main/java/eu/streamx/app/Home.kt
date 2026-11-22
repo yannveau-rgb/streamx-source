@@ -83,6 +83,7 @@ fun openItem(ctx: android.content.Context, account: Account, kind: Kind, item: I
     }
 }
 
+@OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
 fun HomeScreen(
     account: Account,
@@ -90,7 +91,9 @@ fun HomeScreen(
     onSearch: (String) -> Unit,
     onBell: () -> Unit,
     onDetail: OpenDetail,
-    onNavigate: (Int) -> Unit
+    onNavigate: (Int) -> Unit,
+    restoreSearchTick: Int = 0,
+    restoreBellTick: Int = 0
 ) {
     val ctx = LocalContext.current
     val tick = LocalResumeTick.current
@@ -142,19 +145,39 @@ fun HomeScreen(
     }
 
     val rowPadding = PaddingValues(horizontal = 28.dp, vertical = 7.dp)
+    val heroEntry = rememberSafeFocus()
+    val searchFocus = rememberSafeFocus()
+    val bellFocus = rememberSafeFocus()
+    LaunchedEffect(restoreSearchTick) {
+        if (restoreSearchTick > 0) {
+            delay(50)
+            searchFocus.tryFocus()
+        }
+    }
+    LaunchedEffect(restoreBellTick) {
+        if (restoreBellTick > 0) {
+            delay(50)
+            bellFocus.tryFocus()
+        }
+    }
 
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+    Column(
+        Modifier
+            .fillMaxSize()
+            .tvPageEntry(heroEntry, searchFocus)
+            .verticalScroll(rememberScrollState())
+    ) {
         // Barre de recherche et cloche font partie de la bannière : elles défilent avec elle (zIndex : les suggestions recouvrent la suite).
         Box(Modifier.zIndex(1f)) {
-            Hero(account, heroes, onDetail)
+            Hero(account, heroes, onDetail, heroEntry)
             Row(
                 Modifier.align(Alignment.TopEnd).padding(top = 18.dp, end = 28.dp),
                 horizontalArrangement = Arrangement.spacedBy(11.dp),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.Top
             ) {
-                HomeClockWeather()
-                HomeSearchBar(account, onSearch, onDetail)
-                RoundGlassButton(Icons.Outlined.Notifications, bellDot, onBell, description = stringResource(R.string.notifications))
+                Box(Modifier.height(40.dp), contentAlignment = Alignment.Center) { HomeClockWeather() }
+                HomeSearchBar(account, onSearch, onDetail, fieldFocus = searchFocus)
+                RoundGlassButton(Icons.Outlined.Notifications, bellDot, onBell, description = stringResource(R.string.notifications), modifier = Modifier.safeFocusTarget(bellFocus))
             }
         }
         Spacer(Modifier.height(4.dp))
@@ -380,7 +403,8 @@ fun ResumeCard(w: Watch, account: Account, onDetail: OpenDetail) {
 fun Hero(
     account: Account,
     entries: List<Entry>,
-    onDetail: OpenDetail
+    onDetail: OpenDetail,
+    primaryFocus: SafeFocus = rememberSafeFocus()
 ) {
     val ctx = LocalContext.current
     val lowRam = LocalLowRamMode.current
@@ -509,7 +533,7 @@ fun Hero(
                 }
                 Spacer(Modifier.height(10.dp))
                 Row(Modifier.onFocusChanged { paused = it.hasFocus }, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    PillButton(stringResource(if (e.kind == Kind.SERIES) R.string.episodes else R.string.play), Icons.Filled.PlayArrow, true) {
+                    PillButton(stringResource(if (e.kind == Kind.SERIES) R.string.episodes else R.string.play), Icons.Filled.PlayArrow, true, Modifier.safeFocusTarget(primaryFocus)) {
                         if (e.kind == Kind.VOD) playMovie(ctx, account, e.toItem(), false) else openItem(ctx, account, e.kind, e.toItem(), onDetail)
                     }
                     ListButton(e.kind, e.toItem())

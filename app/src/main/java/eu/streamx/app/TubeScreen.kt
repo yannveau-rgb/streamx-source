@@ -45,9 +45,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -95,18 +93,23 @@ fun TubeScreen() {
     val showPicker = (!onboarded || picking) && !searching
     val pageId = when { showPicker -> "pick"; searching -> "search"; else -> "tab$tab" }
 
-    // Les puces du haut : quand un bouton disparaît sous le doigt (Réessayer, Continuer, Retour…), le focus leur revient.
-    val chipReq = remember { List(5) { FocusRequester() } }
+    // Les puces du haut : point d'entrée logique et retour de focus après disparition d'un bouton.
+    val chipReq = remember { List(5) { SafeFocus() } }
+    val searchFieldFocus = rememberSafeFocus()
+    val firstResult = rememberSafeFocus()
+    val retryFocus = rememberSafeFocus()
     LaunchedEffect(refocus) {
-        if (refocus > 0) { delay(60); runCatching { chipReq[if (picking || !onboarded) 4 else tab.coerceIn(0, 3)].requestFocus() } }
+        if (refocus > 0) { delay(60); chipReq[if (picking || !onboarded) 4 else tab.coerceIn(0, 3)].tryFocus() }
     }
 
     val likedIds by produceState(emptySet<String>(), likeTick, resumeTick) {
         value = withContext(Dispatchers.IO) { TubeStore.likes(ctx).map { it.id }.toSet() }
     }
 
-    // Retour : seulement quand une recherche ou le sélecteur de thèmes est ouvert (sinon MainShell ramène à la barre latérale).
+    // Retour : ferme d'abord la recherche ou le sélecteur de thèmes ; sinon MainShell ramène à la barre latérale.
     var inTube by remember { mutableStateOf(false) }
+    val notifySub = LocalNotifySubScreen.current
+    LaunchedEffect(picking) { notifySub(picking) }
     BackHandler(enabled = inTube && (query.isNotEmpty() || picking)) {
         if (picking) picking = false else query = ""
         refocus++
@@ -146,20 +149,27 @@ fun TubeScreen() {
         }
     }
     val shown = state?.takeIf { it.page == pageId }?.data
-    val firstResult = remember { FocusRequester() }
     // La flèche bas depuis la barre ne descend dans la grille que si elle correspond à la requête en cours (pas à la précédente).
     val hasResults = searching && state?.q == query.trim() && (shown as? TubeLoad.Videos)?.list?.isNotEmpty() == true
 
-    // Après « Réessayer » en recherche : le bouton disparaît quand les résultats arrivent, le focus passe alors à la première carte.
+    // Après « Réessayer » ou flèche bas pendant le chargement : le focus passe dès l'arrivée aux résultats.
     LaunchedEffect(focusResults, hasResults) {
-        if (focusResults && hasResults) { delay(80); runCatching { firstResult.requestFocus() }; focusResults = false }
+        if (focusResults && hasResults) {
+            delay(80)
+            if (firstResult.tryFocus()) focusResults = false
+        }
     }
 
+    val entryTarget = chipReq[if (showPicker) 4 else tab.coerceIn(0, 3)]
     Box(
-        Modifier.fillMaxSize().onFocusChanged { inTube = it.hasFocus }.cachedDraw {
-            drawRect(Brush.radialGradient(listOf(theme.c1.copy(alpha = 0.22f), Color.Transparent), center = Offset(size.width * 0.80f, size.height * 0.12f), radius = size.width * 0.48f))
-            drawRect(Brush.radialGradient(listOf(theme.c2.copy(alpha = 0.20f), Color.Transparent), center = Offset(size.width * 0.22f, size.height * 0.20f), radius = size.width * 0.40f))
-        }
+        Modifier
+            .fillMaxSize()
+            .onFocusChanged { inTube = it.hasFocus }
+            .tvPageEntry(entryTarget)
+            .cachedDraw {
+                drawRect(Brush.radialGradient(listOf(theme.c1.copy(alpha = 0.22f), Color.Transparent), center = Offset(size.width * 0.80f, size.height * 0.12f), radius = size.width * 0.48f))
+                drawRect(Brush.radialGradient(listOf(theme.c2.copy(alpha = 0.20f), Color.Transparent), center = Offset(size.width * 0.22f, size.height * 0.20f), radius = size.width * 0.40f))
+            }
     ) {
         Column(Modifier.fillMaxSize().padding(top = 22.dp)) {
             PageHeader(
@@ -168,12 +178,16 @@ fun TubeScreen() {
             )
             Spacer(Modifier.height(12.dp))
             val plain = !searching && !showPicker
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(horizontal = 28.dp, vertical = 4.dp)) {
-                item("home") { SelectChip(stringResource(R.string.home), tab == 0 && plain, Modifier.focusRequester(chipReq[0])) { goTab(0) } }
-                item("trend") { SelectChip(stringResource(R.string.tube_trending), tab == 1 && plain, Modifier.focusRequester(chipReq[1])) { goTab(1) } }
-                item("hearts") { SelectChip(stringResource(R.string.tube_hearts), tab == 2 && plain, Modifier.focusRequester(chipReq[2]), Icons.Filled.ThumbUp) { goTab(2) } }
-                item("hist") { SelectChip(stringResource(R.string.tube_history), tab == 3 && plain, Modifier.focusRequester(chipReq[3])) { goTab(3) } }
-                item("topics") { SelectChip(stringResource(R.string.tube_topics), showPicker, Modifier.focusRequester(chipReq[4])) { picking = true; query = "" } }
+            LazyRow(
+                Modifier.tvUpAction(searchFieldFocus),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                contentPadding = PaddingValues(horizontal = 28.dp, vertical = 4.dp)
+            ) {
+                item("home") { SelectChip(stringResource(R.string.home), tab == 0 && plain, Modifier.safeFocusTarget(chipReq[0])) { goTab(0) } }
+                item("trend") { SelectChip(stringResource(R.string.tube_trending), tab == 1 && plain, Modifier.safeFocusTarget(chipReq[1])) { goTab(1) } }
+                item("hearts") { SelectChip(stringResource(R.string.tube_hearts), tab == 2 && plain, Modifier.safeFocusTarget(chipReq[2]), Icons.Filled.ThumbUp) { goTab(2) } }
+                item("hist") { SelectChip(stringResource(R.string.tube_history), tab == 3 && plain, Modifier.safeFocusTarget(chipReq[3])) { goTab(3) } }
+                item("topics") { SelectChip(stringResource(R.string.tube_topics), showPicker, Modifier.safeFocusTarget(chipReq[4])) { picking = true; query = "" } }
             }
             Spacer(Modifier.height(6.dp))
 
@@ -184,14 +198,15 @@ fun TubeScreen() {
                     onboarded = true; picking = false; tab = 0; reload++; refocus++
                 }
                 searching -> VideoGrid(
-                    shown, likedIds, emptyText = stringResource(if ((shown as? TubeLoad.Videos)?.failed == true) R.string.tube_offline else R.string.tube_none), firstReq = firstResult,
+                    shown, likedIds, emptyText = stringResource(if ((shown as? TubeLoad.Videos)?.failed == true) R.string.tube_offline else R.string.tube_none),
+                    firstReq = firstResult, retryReq = retryFocus,
                     onPlay = { v, q -> TubeStore.addRecent(ctx, state?.q ?: query); play(v, q) }, onLike = { like(it) }, onRetry = { retry() }
                 )
                 tab == 0 -> when (val c = shown) {
-                    is TubeLoad.Done -> if (c.shelves.isEmpty()) Offline { retry() } else Shelves(c.shelves, likedIds, { play(it) }, { like(it) })
+                    is TubeLoad.Done -> if (c.shelves.isEmpty()) Offline(retryFocus) { retry() } else Shelves(c.shelves, likedIds, { play(it) }, { like(it) })
                     else -> Loading()
                 }
-                tab == 1 -> VideoGrid(shown, likedIds, emptyText = stringResource(R.string.tube_offline), onPlay = { v, q -> play(v, q) }, onLike = { like(it) }, onRetry = { retry() })
+                tab == 1 -> VideoGrid(shown, likedIds, emptyText = stringResource(R.string.tube_offline), retryReq = retryFocus, onPlay = { v, q -> play(v, q) }, onLike = { like(it) }, onRetry = { retry() })
                 tab == 2 -> VideoGrid(shown, likedIds, emptyText = stringResource(R.string.tube_empty_hearts), onPlay = { v, q -> play(v, q) }, onLike = { like(it) }, onRetry = null, queueAfter = true)
                 else -> {
                     if ((shown as? TubeLoad.Videos)?.list?.isNotEmpty() == true) {
@@ -209,7 +224,10 @@ fun TubeScreen() {
         TubeSearchBar(
             query, { query = it; if (it.isNotEmpty()) picking = false },
             onSubmit = { TubeStore.addRecent(ctx, it) },
+            fieldFocus = searchFieldFocus,
             downTarget = if (hasResults) firstResult else null,
+            fallbackDownTarget = if (searching) retryFocus else null,
+            onRequestResults = { focusResults = true },
             modifier = Modifier.align(Alignment.TopEnd).padding(top = 20.dp, end = 28.dp).zIndex(2f)
         )
     }
@@ -221,10 +239,10 @@ private fun Loading() {
 }
 
 @Composable
-private fun Offline(onRetry: () -> Unit) {
+private fun Offline(retryReq: SafeFocus? = null, onRetry: () -> Unit) {
     Column(Modifier.padding(horizontal = 28.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text(stringResource(R.string.tube_offline), color = SX.Muted, fontSize = 13.sp)
-        Row { SelectChip(stringResource(R.string.retry), false) { onRetry() } }
+        Row { SelectChip(stringResource(R.string.retry), false, if (retryReq != null) Modifier.safeFocusTarget(retryReq) else Modifier) { onRetry() } }
     }
 }
 
@@ -246,7 +264,7 @@ private fun Shelves(shelves: List<TShelf>, liked: Set<String>, onPlay: (TVideo) 
 private fun VideoGrid(
     state: TubeLoad?, liked: Set<String>, emptyText: String,
     onPlay: (TVideo, List<TVideo>) -> Unit, onLike: (TVideo) -> Unit, onRetry: (() -> Unit)?, queueAfter: Boolean = false,
-    firstReq: FocusRequester? = null
+    firstReq: SafeFocus? = null, retryReq: SafeFocus? = null
 ) {
     val list = (state as? TubeLoad.Videos)?.list
     when {
@@ -254,7 +272,7 @@ private fun VideoGrid(
         list.isEmpty() -> if (emptyText.isNotEmpty()) {
             Column(Modifier.padding(horizontal = 28.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text(emptyText, color = SX.Muted, fontSize = 13.sp)
-                if (onRetry != null) Row { SelectChip(stringResource(R.string.retry), false) { onRetry() } }
+                if (onRetry != null) Row { SelectChip(stringResource(R.string.retry), false, if (retryReq != null) Modifier.safeFocusTarget(retryReq) else Modifier) { onRetry() } }
             }
         }
         else -> LazyVerticalGrid(
@@ -265,7 +283,7 @@ private fun VideoGrid(
             items(list, key = { it.id }) { v ->
                 TubeCard(
                     v, v.id in liked, Modifier, onClick = { onPlay(v, if (queueAfter) list.filter { it.id != v.id }.shuffled() else emptyList()) }, onLike = { onLike(v) },
-                    focusMod = if (firstReq != null && v.id == list.first().id) Modifier.focusRequester(firstReq) else Modifier
+                    focusMod = if (firstReq != null && v.id == list.first().id) Modifier.safeFocusTarget(firstReq) else Modifier
                 )
             }
         }

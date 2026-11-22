@@ -254,6 +254,21 @@ fun ThemedHubScreen(theme: HubTheme, account: Account, onDetail: OpenDetail) {
 
     var filter by androidx.compose.runtime.saveable.rememberSaveable(theme) { mutableStateOf("all") }
     var managing by remember(theme) { mutableStateOf(false) }
+    var wasManaging by remember(theme) { mutableStateOf(false) }
+    val notifySub = LocalNotifySubScreen.current
+    LaunchedEffect(managing) {
+        notifySub(managing)
+        if (managing) wasManaging = true
+    }
+    val manageFocus = rememberSafeFocus()
+    val firstChipFocus = rememberSafeFocus()
+    LaunchedEffect(managing) {
+        if (!managing && wasManaging) {
+            wasManaging = false
+            kotlinx.coroutines.delay(50)
+            manageFocus.tryFocus()
+        }
+    }
     if (managing) {
         BackHandler { managing = false }
         HubCategoriesScreen(theme, account, filter) { managing = false }
@@ -331,6 +346,7 @@ fun ThemedHubScreen(theme: HubTheme, account: Account, onDetail: OpenDetail) {
     Box(
         Modifier
             .fillMaxSize()
+            .tvPageEntry(firstChipFocus)
             .cachedDraw {
                 drawRect(
                     Brush.radialGradient(
@@ -359,18 +375,25 @@ fun ThemedHubScreen(theme: HubTheme, account: Account, onDetail: OpenDetail) {
                 stringResource(if (theme == HubTheme.KIDS) R.string.nav_kids else R.string.nav_music),
                 stringResource(if (theme == HubTheme.KIDS) R.string.hub_kids_sub else R.string.hub_music_sub),
                 modifier = Modifier.padding(horizontal = 28.dp),
-                trailing = { ActionChip(stringResource(R.string.cat_manage), icon = Icons.Outlined.Tune) { managing = true } }
+                trailing = {
+                    ActionChip(
+                        stringResource(R.string.cat_manage),
+                        Modifier.safeFocusTarget(manageFocus).tvDownTarget(firstChipFocus),
+                        icon = Icons.Outlined.Tune
+                    ) { managing = true }
+                }
             )
             Spacer(Modifier.height(10.dp))
 
             // Pastilles de filtrage + favoris rapides
             LazyRow(
+                Modifier.tvUpAction(manageFocus),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 contentPadding = PaddingValues(horizontal = 28.dp, vertical = 4.dp)
             ) {
                 item(key = "all") {
-                    SelectChip(stringResource(R.string.facet_all), filter == "all") { filter = "all" }
+                    SelectChip(stringResource(R.string.facet_all), filter == "all", Modifier.safeFocusTarget(firstChipFocus)) { filter = "all" }
                 }
                 val favTotal = favLive.size + favVod.size
                 if (favTotal > 0) {

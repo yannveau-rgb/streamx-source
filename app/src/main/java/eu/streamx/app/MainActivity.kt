@@ -156,10 +156,14 @@ fun Modifier.tvFocus(
         .drawWithCache {
             val outline = shape.createOutline(size, layoutDirection, this)
             val ringW = 2.5.dp.toPx()
+            val outerW = 4.5.dp.toPx()
             onDrawWithContent {
                 drawContent()
                 val a = if (!decorate) 0f else if (lowRam) (if (focused) 1f else 0f) else (animProgress?.value ?: 0f)
-                if (a > 0.01f) drawOutline(outline, Color.White, alpha = a * 0.95f, style = Stroke(ringW))
+                if (a > 0.01f) {
+                    drawOutline(outline, Color(0xFF050711), alpha = a * 0.65f, style = Stroke(outerW))
+                    drawOutline(outline, Color.White, alpha = a, style = Stroke(ringW))
+                }
             }
         }
         .onFocusChanged {
@@ -318,7 +322,15 @@ fun MainShell(account: Account, profiles: List<Account>, onSwitch: (Account) -> 
     var searchQuery by remember { mutableStateOf("") }
     var showM3u by remember { mutableStateOf(false) }
     var detail by remember { mutableStateOf<Pair<Kind, Item>?>(null) }
-    val openDetail: OpenDetail = { k, i -> FocusMemory.onOpenDetail(); detail = k to i }
+    var inSubScreen by remember { mutableStateOf(false) }
+    var restoreSearchTick by remember { mutableIntStateOf(0) }
+    var restoreBellTick by remember { mutableIntStateOf(0) }
+    var restoreM3uTick by remember { mutableIntStateOf(0) }
+    val openDetail: OpenDetail = { k, i ->
+        // Ne pas écraser la vignette d'origine si l'utilisateur ouvre un titre similaire depuis une fiche déjà ouverte.
+        if (detail == null) FocusMemory.onOpenDetail()
+        detail = k to i
+    }
     // Retour d'une fiche : la page d'origine est recréée (défilement conservé ci-dessous) et la vignette qui avait le focus le retrouve.
     val closeDetail: () -> Unit = { FocusMemory.onCloseDetail(); detail = null }
     val pages = androidx.compose.runtime.saveable.rememberSaveableStateHolder()
@@ -361,32 +373,30 @@ fun MainShell(account: Account, profiles: List<Account>, onSwitch: (Account) -> 
             NotifState.markChimed(chimeCtx, accountInfo)
         }
     }
-    val goTo: (Int) -> Unit = { selected = it; detail = null; searching = false; showNotifs = false; showM3u = false }
+    val goTo: (Int) -> Unit = { selected = it; detail = null; searching = false; showNotifs = false; showM3u = false; inSubScreen = false }
 
     // --- Télécommande : la barre latérale et le contenu sont deux zones de focus distinctes.
     val navReqs = remember { List(items.size) { FocusRequester() } }
     val contentReq = remember { FocusRequester() }
-    val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
     var contentFocused by remember { mutableStateOf(false) }
     var enterTick by remember { mutableIntStateOf(0) }
     var firstRun by remember { mutableStateOf(true) }
     val onSidebarSelect: (Int) -> Unit = { goTo(it); enterTick++ }
 
-    // Transfert rapide du focus vers le contenu dès l'ouverture d'une rubrique ou d'une fiche
-    LaunchedEffect(enterTick, detail, searching, showM3u) {
+    // Transfert vers le haut logique du contenu uniquement sur sélection explicite dans la barre latérale.
+    LaunchedEffect(enterTick) {
         if (firstRun) { firstRun = false; return@LaunchedEffect }
-        delay(20)
-        repeat(20) {
-            if (!contentFocused) {
-                runCatching { focusManager.moveFocus(FocusDirection.Right) }
-            }
+        delay(55)
+        repeat(12) {
+            if (contentFocused) return@LaunchedEffect
+            runCatching { contentReq.requestFocus() }
             if (contentFocused) return@LaunchedEffect
             delay(45)
         }
     }
 
-    // Retour : saut direct vers la rubrique active de la barre latérale (en 1 opération), puis vers l'accueil.
-    val overlay = detail != null || searching || showNotifs || showM3u
+    // Retour : bloqué tant qu'un sous-écran ou panneau gère son propre Retour ; sinon, retour à la barre latérale puis à l'accueil.
+    val overlay = detail != null || searching || showNotifs || showM3u || inSubScreen
     BackHandler(enabled = !overlay && (contentFocused || selected != 0)) {
         if (contentFocused) {
             runCatching { navReqs[selected].requestFocus() }
@@ -440,7 +450,8 @@ fun MainShell(account: Account, profiles: List<Account>, onSwitch: (Account) -> 
             }
             CompositionLocalProvider(
                 LocalBringIntoViewSpec provides (if (lowRam) TvBringIntoViewLite else TvBringIntoView),
-                LocalNavTheme provides navThemeOf(sectionType)
+                LocalNavTheme provides navThemeOf(sectionType),
+                LocalNotifySubScreen provides { inSubScreen = it }
             ) {
                 Box(
                     Modifier
@@ -450,7 +461,8 @@ fun MainShell(account: Account, profiles: List<Account>, onSwitch: (Account) -> 
                         .focusProperties {
                             exit = { d ->
                                 when (d) {
-                                    FocusDirection.Left -> navReqs[selected]
+                                    // Un appui Gauche de trop dans un sous-écran (fiche, recherche, catégories…) ne doit pas éjecter vers la barre latérale.
+                                    FocusDirection.Left -> if (overlay) FocusRequester.Cancel else navReqs[selected]
                                     FocusDirection.Up, FocusDirection.Down, FocusDirection.Right -> FocusRequester.Cancel
                                     else -> FocusRequester.Default
                                 }
@@ -462,8 +474,14 @@ fun MainShell(account: Account, profiles: List<Account>, onSwitch: (Account) -> 
                     when {
                         d != null && d.first == Kind.SERIES -> SeriesScreen(account, d.second) { closeDetail() }
                         d != null -> MovieScreen(account, d.second, { closeDetail() }, openDetail)
-                        showM3u -> M3uScreen { showM3u = false }
-                        searching -> SearchScreen(account, searchQuery, { searching = false }) { k, i -> detail = k to i; searching = false }
+                        showM3u -> M3uScreen { showM3u = false; restoreM3uTick++ }
+                        searching -> SearchScreen(
+                            account = account,
+                            initial = searchQuery,
+                            onQueryChange = { searchQuery = it },
+                            onClose = { searching = false; restoreSearchTick++ },
+                            onDetail = openDetail
+                        )
                         else -> pages.SaveableStateProvider("page$selected") {
                             when (selected) {
                                 0 -> HomeScreen(
@@ -471,7 +489,9 @@ fun MainShell(account: Account, profiles: List<Account>, onSwitch: (Account) -> 
                                     onSearch = { q -> searchQuery = q; searching = true },
                                     onBell = { showNotifs = !showNotifs },
                                     onDetail = openDetail,
-                                    onNavigate = { goTo(it) }
+                                    onNavigate = { goTo(it) },
+                                    restoreSearchTick = restoreSearchTick,
+                                    restoreBellTick = restoreBellTick
                                 )
                                 1 -> LiveTvScreen(account, openDetail)
                                 2 -> BrowseScreen(Kind.VOD, account, R.string.movies, openDetail)
@@ -480,11 +500,20 @@ fun MainShell(account: Account, profiles: List<Account>, onSwitch: (Account) -> 
                                 5 -> ThemedHubScreen(HubTheme.MUSIC, account, openDetail)
                                 6 -> TubeScreen()
                                 7 -> FavoritesScreen(account, openDetail)
-                                else -> AccountScreen(account, profiles, onSwitch, onAddProfile, { showM3u = true }, onLogout)
+                                else -> AccountScreen(account, profiles, onSwitch, onAddProfile, { showM3u = true }, onLogout, restoreM3uTick)
                             }
                         }
                     }
-                    if (showNotifs) NotificationsPanel(Modifier.align(Alignment.TopEnd), accountInfo, onOpenSeries = { showNotifs = false; openDetail(Kind.SERIES, it) }) { showNotifs = false }
+                    if (showNotifs) {
+                        Box(Modifier.fillMaxSize().background(Color(0x70050711))) {
+                            NotificationsPanel(
+                                Modifier.align(Alignment.TopEnd),
+                                accountInfo,
+                                onOpenSeries = { showNotifs = false; openDetail(Kind.SERIES, it) },
+                                onClose = { showNotifs = false; restoreBellTick++ }
+                            )
+                        }
+                    }
                     // (L'ombre portée sur le contenu est désormais dessinée par la barre latérale elle-même, le long de son contour :
                     // l'ancien bandeau d'ombre ajoutait un second trait vertical à droite.)
                 }
